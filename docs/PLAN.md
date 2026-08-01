@@ -18,8 +18,8 @@ The central claim the repo must support or refute with its own numbers:
 | # | Milestone | Status |
 |---|-----------|--------|
 | M0 | Repo scaffolding: uv, pinned deps, src layout, ruff/mypy/pytest, CI, Makefile | done |
-| M1 | Core matching engine: price-time priority, event loop, order lifecycle | todo |
-| M2 | Queue-position tracking and the two fill models (optimistic / queue-aware) | todo |
+| M1 | Core matching engine: price-time priority, order lifecycle | done |
+| M2 | Queue-position tracking and the two fill models (optimistic / queue-aware) | done |
 | M3 | Synthetic order-flow generator (Hawkes market orders, ZI limit/cancel flow) | todo |
 | M4 | Stylized-facts validation suite — simulator fidelity as a *measured* result | todo |
 | M5 | Market-making agent API, rule-based baselines, backtest harness, metrics | todo |
