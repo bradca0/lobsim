@@ -61,6 +61,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ARG001", "ARG002"]
+# This module emits Markdown for humans; en dashes and multiplication signs are deliberate.
+"scripts/render_readme_tables.py" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.12"
