@@ -60,9 +60,9 @@ The analysis is in the README's Limitations section, and the short version is a
 signal-to-noise argument. The per-step reward is the change in mark-to-market, whose standard
 deviation is roughly 7 ticks, while the difference between a good and a bad action is worth
 perhaps a hundredth of that. Fitted Q-Iteration has to resolve that gap from ~120k transitions
-spread across 16 actions and a continuous state. The ablations show the machinery is working — the
-double estimator does reduce Q-value inflation, persistent exploration does improve the result
-substantially over i.i.d. exploration — but working machinery on an unfavourable SNR still loses.
+spread across 16 actions and a continuous state. Persistent exploration does improve the result
+substantially over i.i.d. exploration (-76.8 to -33.8 on validation seeds), so the machinery is not
+inert — but working machinery on an unfavourable SNR still loses.
 
 The honest read is that this is a data and reward-design problem, not a "needs a bigger model"
 problem, and the README says which specific changes would be tried next.
@@ -138,18 +138,30 @@ would understate the search and flatter the statistic, which is the exact failur
 Sharpe exists to catch. See `docs/DECISIONS.md` D11; this is a hand-maintained honesty mechanism
 and is labelled as one.
 
-### 10. Fitted Q-Iteration bootstraps through a `max`. Aren't your Q-values inflated?
+### 10. Fitted Q-Iteration bootstraps through a `max`. Aren't your Q-values inflated? And did your fix work?
 
-They were, measurably: `mean|target|` grew 1.08 → 3.71 across four iterations on an early run, which
-is the signature of maximisation bias compounding through the Bellman backup.
+The first half: `mean|target|` grew 1.08 → 3.71 across four iterations on an early run, which looks
+exactly like maximisation bias compounding through the Bellman backup.
 
-The fix is a double estimator (`_fit_double` in `src/lobsim/agents/fqi.py`): two Q functions fitted
-on disjoint sets of *episodes* — not rows, because adjacent rows are correlated and would destroy
-the independence the correction relies on — with each one's bootstrap target evaluated by the other
-at the action the first considers greedy. `FQIResult.target_inflation` reports the ratio, the README
-ablation table reports it for both estimators, and
-`tests/test_fqi.py::test_the_double_estimator_reduces_target_inflation` verifies the correction on a
-pure-noise dataset where every action's true value is zero by construction.
+The fix implemented is a double estimator (`_fit_double` in `src/lobsim/agents/fqi.py`): two Q
+functions fitted on disjoint sets of *episodes* — not rows, because adjacent rows are correlated and
+would destroy the independence the correction relies on — with each one's bootstrap target evaluated
+by the other at the action the first considers greedy. On a synthetic pure-noise dataset, where
+every action's true value is zero by construction and therefore *all* inflation is bias, it works:
+`tests/test_fqi.py::test_the_double_estimator_reduces_target_inflation` passes.
+
+The second half is where the honest answer is "no". On the real data it made no measurable
+difference: inflation 1.8519 with the double estimator versus 1.8516 with a single one, and a paired
+PnL difference of -2.99 ticks with a 95% CI of [-20.41, +13.80] (p = 0.73). The ablation is in the
+README reported as the null result it is.
+
+The diagnosis is that `target_inflation` is not a clean bias measurement on real data, and I would
+not use it that way again. With a discount of 0.97 and three iterations, targets are *supposed* to
+grow as the value function integrates over a longer effective horizon; the metric conflates that
+legitimate accumulation with maximisation bias and cannot separate them. It is a useful alarm for
+"something is diverging" and a poor instrument for "how much bias is there". The synthetic test,
+where the true value is known to be zero, is the only place in this repo where the metric means
+what its name suggests.
 
 ### 11. A gradient-boosted tree can just ignore the action column. How do you know your Q function isn't action-independent?
 
@@ -157,7 +169,7 @@ This is the silent failure that motivated the design. An action-independent Q st
 produces a policy, and still reports numbers — it is simply arbitrary.
 
 The action is declared to sklearn as a *categorical* feature (`QModel._new_regressor`), which makes
-it a first-class split candidate rather than one numeric column among twenty-two. And
+it a first-class split candidate rather than one numeric column among eighteen. And
 `tests/test_fqi.py::TestQModel::test_q_values_actually_depend_on_the_action` asserts that the fitted
 Q spreads meaningfully across actions, while
 `test_the_fitted_policy_recovers_the_known_optimal_action` checks on synthetic data — where the
@@ -234,4 +246,5 @@ What would most likely fix the learned policy, in order of expected value:
    inventory penalty is a crude proxy for that.
 
 What I would not do is add capacity to the function approximator; nothing in the diagnostics
-suggests the model class is the binding constraint.
+suggests the model class is the binding constraint. I would also drop the double estimator unless a
+cleaner bias diagnostic showed it earning its cost — see Q10.

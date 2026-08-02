@@ -7,6 +7,9 @@ machinery would catch it.
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -234,3 +237,20 @@ class TestNoLookahead:
             f"MarketContext gained field(s) {sorted(actual - allowed)}; if this is future or "
             "latent information, the agent must not see it"
         )
+
+
+class TestDocumentationDoesNotDrift:
+    """Prose in the README states counts that code owns. Numbers in prose rot silently."""
+
+    def _readme(self) -> str:
+        return (Path(__file__).resolve().parents[1] / "README.md").read_text()
+
+    def test_the_readme_states_the_real_feature_count(self) -> None:
+        match = re.search(r"features\.py\s+(\d+) microstructure features", self._readme())
+        assert match, "README no longer describes features.py; update this test or the README"
+        assert int(match.group(1)) == N_FEATURES
+
+    def test_the_readme_states_the_real_group_count(self) -> None:
+        match = re.search(r"microstructure features in (\d+) ablatable groups", self._readme())
+        assert match
+        assert int(match.group(1)) == len(FEATURE_GROUPS)

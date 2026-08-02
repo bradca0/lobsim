@@ -76,7 +76,7 @@ src/lobsim/
   book.py         price-time priority matching engine, exact queue-position tracking
   flow.py         order flow: zero-intelligence + Hawkes + a latent fundamental
   engine.py       discrete-event loop, post-only quoting, exact PnL attribution
-  features.py     22 microstructure features in 4 ablatable groups
+  features.py     18 microstructure features in 4 ablatable groups
   agents/         5 rule-based baselines + fitted Q-iteration policy
   stats.py        block bootstrap, paired tests, Holm correction, deflated Sharpe
   validation.py   stylized-fact estimators
@@ -181,8 +181,12 @@ wider than the headline's. The seeds are a prefix of the same held-out set, neve
 The feature ablation is the one that answers "does the policy actually use queue position?" — and
 it does: removing the queue group costs it, removing flow costs more, and a book-only policy is
 worst. The double-estimator ablation is a negative result and is reported as one: at these
-hyperparameters it neither reduced Q-value inflation nor improved PnL relative to a single
-estimator, despite doing both on the synthetic diagnostic in `tests/test_fqi.py`.
+hyperparameters it neither reduced Q-value inflation (1.8519 versus 1.8516) nor improved PnL
+(-2.99 ticks, 95% CI [-20.41, +13.80], p = 0.73), despite provably correcting the bias on the
+synthetic pure-noise diagnostic in `tests/test_fqi.py`. The likely reason is that the inflation
+metric itself is not a clean bias measurement on real data — with a discount of 0.97, targets are
+*supposed* to grow as the horizon lengthens, and the statistic cannot separate that from bias.
+`docs/INTERVIEW.md` Q10 works through it.
 
 The cancellation-position ablation is the important one for external validity. Whether a cancelled
 lot is drawn uniformly from the queue or is biased toward late arrivals controls how fast the queue
