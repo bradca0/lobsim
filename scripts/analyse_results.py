@@ -137,7 +137,7 @@ def main() -> None:
 
     with stage("selection-adjusted Sharpe"):
         n_trials = int(training["development_trials"])
-        deflation: dict[str, object] = {}
+        deflation: dict[str, dict[str, float]] = {}
         for policy in ("fqi", baseline, "fixed_spread_2"):
             if policy not in backtests["results"]["queue_aware"]:
                 continue
@@ -145,11 +145,12 @@ def main() -> None:
             # Only the learned policy went through a search; the baselines are single fixed rules,
             # so deflating them by the same trial count would be nonsense.
             trials = n_trials if policy == "fqi" else 1
-            deflation[policy] = deflated_sharpe_ratio(pnl, n_trials=trials)
+            record = deflated_sharpe_ratio(pnl, n_trials=trials)
+            deflation[policy] = record
             print(
-                f"      {policy:<20} Sharpe {deflation[policy]['sharpe']:+.4f}  "  # type: ignore[index]
-                f"benchmark {deflation[policy]['benchmark']:+.4f}  "  # type: ignore[index]
-                f"DSR {deflation[policy]['deflated_sharpe']:.4f}  (trials={trials})"  # type: ignore[index]
+                f"      {policy:<20} Sharpe {record['sharpe']:+.4f}  "
+                f"benchmark {record['benchmark']:+.4f}  "
+                f"DSR {record['deflated_sharpe']:.4f}  (trials={trials})"
             )
         summary["deflated_sharpe"] = deflation
 
