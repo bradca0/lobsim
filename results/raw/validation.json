@@ -1,6 +1,6 @@
 {
   "_provenance": {
-    "git_revision": "e39d405",
+    "git_revision": "a4b27b2",
     "machine": "arm64",
     "platform": "macOS-26.5.2-arm64-arm-64bit",
     "python": "3.12.4"
@@ -12,9 +12,9 @@
     "sample_interval": 1.0
   },
   "diagnostics": {
-    "kurtosis_sd_across_episodes": 16.613450477437667,
-    "mean_market_orders_per_episode": 1341.85,
-    "mean_new_orders_per_episode": 7276.583333333333
+    "kurtosis_sd_across_episodes": 17.516093542836508,
+    "mean_market_orders_per_episode": 1167.9666666666667,
+    "mean_new_orders_per_episode": 7092.916666666667
   },
   "facts": [
     {
@@ -24,7 +24,7 @@
       "target_high": 50.0,
       "target_low": 0.5,
       "units": "",
-      "value": 26.091673627525143
+      "value": 30.22301319992608
     },
     {
       "description": "Autocorrelation of |returns| at lag 1: positive and persistent in real data.",
@@ -33,16 +33,16 @@
       "target_high": 0.6,
       "target_low": 0.02,
       "units": "",
-      "value": 0.30866556262053824
+      "value": 0.23697050264214653
     },
     {
       "description": "Autocorrelation of |returns| at lag 10: decays slowly, staying above zero.",
       "name": "volatility_clustering_lag10",
-      "passes": true,
+      "passes": false,
       "target_high": 0.4,
       "target_low": 0.0,
       "units": "",
-      "value": 0.0034103225146836324
+      "value": -0.006794763907900125
     },
     {
       "description": "Autocorrelation of raw returns: near zero, slightly negative from bid-ask bounce.",
@@ -51,7 +51,7 @@
       "target_high": 0.05,
       "target_low": -0.35,
       "units": "",
-      "value": -0.16637448160320986
+      "value": -0.11392659113914508
     },
     {
       "description": "Lo-MacKinlay variance ratio at 10s. Near 1 means the mid is close to a martingale; far below 1 would mean a market maker is paid by mean reversion rather than by providing liquidity.",
@@ -60,7 +60,7 @@
       "target_high": 1.3,
       "target_low": 0.7,
       "units": "",
-      "value": 0.7306832771927646
+      "value": 0.9826565515494966
     },
     {
       "description": "Variance ratio at 30s: the mid must stay diffusive at longer horizons too.",
@@ -69,7 +69,7 @@
       "target_high": 1.3,
       "target_low": 0.7,
       "units": "",
-      "value": 0.7580437063121135
+      "value": 1.1143427808572672
     },
     {
       "description": "Median quoted spread. The target regime is tick-constrained: mostly 1 tick.",
@@ -87,7 +87,7 @@
       "target_high": 60.0,
       "target_low": 5.0,
       "units": "lots",
-      "value": 15.63616332905673
+      "value": 17.60723845639081
     },
     {
       "description": "Hill tail index of order sizes; equity and futures data report roughly 1.5-2.5.",
@@ -96,7 +96,7 @@
       "target_high": 3.0,
       "target_low": 1.4,
       "units": "alpha",
-      "value": 1.8585829354467376
+      "value": 1.872622567444341
     },
     {
       "description": "Autocorrelation of market-order signs: real order flow is strongly persistent.",
@@ -105,7 +105,7 @@
       "target_high": 0.5,
       "target_low": 0.0,
       "units": "",
-      "value": 0.30067663436272407
+      "value": 0.2645999734837394
     },
     {
       "description": "Index of the fullest level away from the touch; real books are hump-shaped.",
@@ -122,7 +122,7 @@
     "cancel_rate_per_lot": "0.09",
     "fundamental_vol": "0.45",
     "informed_clip": "2.5",
-    "informed_kappa": "1.0",
+    "informed_kappa": "0.6",
     "initial_depth_levels": "6",
     "initial_level_size": "16",
     "initial_price": "10000",
@@ -137,39 +137,38 @@
     "size_max": "60"
   },
   "mean_depth_profile": [
-    15.63616332905673,
-    13.888324873096447,
-    10.05282534724159,
-    7.391978579795839,
-    5.6546828805712055,
-    4.441931165281419
+    17.60723845639081,
+    14.875027883113987,
+    10.270995984831586,
+    7.4040542047735896,
+    5.679623020298907,
+    4.479561677448137
   ],
   "n_episodes": 60,
   "n_facts": 11,
-  "n_passing": 10,
+  "n_passing": 9,
   "signature_plot": {
-    "1": 6.106118296259316e-09,
-    "10": 4.0637828143957e-09,
-    "2": 5.184181025660826e-09,
-    "30": 3.9950398467729904e-09,
-    "5": 4.244557095456821e-09
+    "1": 3.855475928627448e-09,
+    "10": 3.4948719114686736e-09,
+    "2": 3.567460458132328e-09,
+    "30": 3.72793347499609e-09,
+    "5": 3.390086558563176e-09
   },
   "spread_distribution": {
-    "1": 17101,
-    "10": 2,
-    "11": 1,
-    "2": 671,
-    "3": 88,
-    "4": 36,
-    "5": 13,
+    "1": 17372,
+    "12": 1,
+    "2": 477,
+    "3": 51,
+    "4": 12,
+    "5": 7,
     "6": 5,
-    "7": 5,
-    "8": 2,
-    "9": 3
+    "7": 3,
+    "8": 3,
+    "9": 1
   },
   "variance_ratio_by_horizon": {
-    "10": 0.7306832771927646,
-    "2": 0.8555123049679313,
-    "30": 0.7580437063121135
+    "10": 0.9826565515494966,
+    "2": 0.8894038624206659,
+    "30": 1.1143427808572672
   }
 }

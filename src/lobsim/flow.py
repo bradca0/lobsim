@@ -100,7 +100,7 @@ class FlowParams:
 
     # Latent fundamental value: a random walk in tick units that aggressive flow chases.
     fundamental_vol: float = 0.45
-    informed_kappa: float = 1.00
+    informed_kappa: float = 0.60
     informed_clip: float = 2.5
 
     # Order sizes: discrete Pareto, truncated.

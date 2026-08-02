@@ -48,6 +48,10 @@ class MarketContext:
     inventory: int
     step: int
     steps_total: int
+    # Public tape since the previous decision. A real market maker sees prints, so withholding
+    # them would understate what any deployed policy could condition on.
+    trade_flow: int = 0
+    traded_volume: int = 0
 
     @property
     def time_remaining(self) -> float:
@@ -102,6 +106,11 @@ class EpisodeResult:
     n_agent_quotes: int = 0
     post_only_rejections: int = 0
     liquidation_cost: float = 0.0
+    # Accumulated exactly, event by event, rather than reconstructed from sampled series -- see
+    # the note on _mark_inventory below.
+    spread_capture: float = 0.0
+    inventory_pnl: float = 0.0
+    unmarkable_events: int = 0
 
     @property
     def n_fills(self) -> int:
@@ -143,6 +152,12 @@ class Simulation:
         self._agent_order_ids: dict[Side, int | None] = {Side.BUY: None, Side.SELL: None}
         self._post_only_rejections = 0
         self._n_quotes = 0
+        self._tape_flow = 0
+        self._tape_volume = 0
+        self._spread_capture = 0.0
+        self._inventory_pnl = 0.0
+        self._mark_mid: float | None = None
+        self._unmarkable = 0
 
     # ------------------------------------------------------------------ agent plumbing
 
@@ -176,9 +191,32 @@ class Simulation:
                 is_maker=is_maker,
                 mid_at_fill=mid,
             )
+            if mid is not None:
+                self._spread_capture += fill.side.sign * fill.size * (mid - fill.price)
             self.state.apply(fill)
             if self.agent is not None:
                 self.agent.observe_fill(fill)
+
+    def _mark_inventory(self, inventory_before: float, mid_before: float | None) -> None:
+        """Attribute the mid move across one action to the position held going into it.
+
+        Every action is bracketed by this call, which makes the PnL decomposition an *identity*
+        rather than an approximation::
+
+            d(cash + q*m) = sign*size*(m_after - price)   [spread capture, per fill]
+                          + q_before * (m_after - m_before)   [inventory PnL]
+
+        Reconstructing the second term from a sampled inventory and mid series -- the usual
+        approach -- is only approximate, because both change between samples. Accumulating it here,
+        at every event, means ``spread_capture + inventory_pnl`` reproduces realised PnL to
+        floating-point precision, and tests assert exactly that.
+        """
+        mid_after = self.book.mid
+        if mid_before is None or mid_after is None:
+            self._unmarkable += 1
+            return
+        if mid_after != mid_before:
+            self._inventory_pnl += inventory_before * (mid_after - mid_before)
 
     def _cancel_agent_side(self, side: Side) -> None:
         order_id = self._agent_order(side)
@@ -265,8 +303,14 @@ class Simulation:
                         inventory=self.state.inventory,
                         step=step,
                         steps_total=steps_total,
+                        trade_flow=self._tape_flow,
+                        traded_volume=self._tape_volume,
                     )
+                    inv_before, mid_before = self.state.inventory, self.book.mid
                     self._apply_quote(ts_ns, self.agent.act(ctx))
+                    self._mark_inventory(inv_before, mid_before)
+                self._tape_flow = 0
+                self._tape_volume = 0
                 next_decision += cfg.decision_interval
                 step += 1
             while next_sample <= t:
@@ -281,12 +325,18 @@ class Simulation:
 
             if event is not None:
                 n_events += 1
+                inv_before, mid_before = self.state.inventory, self.book.mid
                 trades = self._apply_event(event)
+                self._mark_inventory(inv_before, mid_before)
                 for trade in trades:
                     trade_px.append(trade.price)
                     trade_ts.append(trade.ts)
+                    self._tape_flow += trade.aggressor.sign * trade.size
+                    self._tape_volume += trade.size
 
+        inv_before, mid_before = self.state.inventory, self.book.mid
         liquidation_cost = self._close_out(end_time)
+        self._mark_inventory(inv_before, mid_before)
         final_mid = self.book.mid if self.book.mid is not None else last_mid
 
         return EpisodeResult(
@@ -305,6 +355,9 @@ class Simulation:
             n_agent_quotes=self._n_quotes,
             post_only_rejections=self._post_only_rejections,
             liquidation_cost=liquidation_cost,
+            spread_capture=self._spread_capture,
+            inventory_pnl=self._inventory_pnl,
+            unmarkable_events=self._unmarkable,
         )
 
     def _apply_event(self, event: FlowEvent) -> list[Trade]:

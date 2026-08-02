@@ -94,3 +94,72 @@ statistical power. It is *not* true that the realised order flow is identical ac
 the code says so: the agent is a market participant, so its quotes change the touch and absorb
 aggressive orders that would otherwise have hit someone else. Independent seeds would have thrown
 away the pairing for no benefit.
+
+## D7 — Informed-flow strength calibrated to the realized/effective spread ratio
+
+**Decision.** `informed_kappa` was set to 0.60 by matching the *realized-to-effective spread ratio*
+of a fixed reference policy (`AlwaysAtTouch`) to roughly 0.25, inside the 0.2-0.5 band reported in
+the empirical microstructure literature (Huang & Stoll 1996 and successors).
+
+**Alternatives.** Picking the tilt by eye; picking it so that some policy looks profitable; not
+tilting aggressive flow at all.
+
+**Why.** The strength of informed flow directly sets how much adverse selection a market maker
+faces, so it is the parameter most capable of manufacturing whatever conclusion the author wants.
+Tying it to a published, policy-independent statistic removes that freedom. The criterion was fixed
+*before* any learned policy existed, it is measured with a reference baseline rather than with the
+policy under test, and it is now reported as a stylized fact in its own right. The measured ratio is
+in `results/raw/validation.json`.
+
+Two things worth noting about what this calibration bought. It also improved the variance ratio
+substantially -- from 0.73 at `kappa = 1.0` to 0.98 at 10 seconds -- so the mid became a far better
+martingale as a side effect. And it is a *single-statistic* calibration: it identifies the strength
+of informed flow given everything else, not the joint parameter vector.
+
+## D8 — A two-timescale Hawkes kernel was implemented, measured, and rejected
+
+**Decision.** Market-order arrivals use a *single* exponential Hawkes kernel. A two-timescale
+kernel (fast bursts plus slow memory) was implemented in full, measured against a pre-registered
+acceptance criterion, failed it, and was reverted.
+
+**Alternatives.** Keeping the two-timescale kernel; pushing the branching ratio up until volatility
+clustering appears.
+
+**Why.** The simulator does not reproduce volatility clustering beyond about a second: the
+autocorrelation of |returns| is ~0.24 at lag 1 but ~0 at lag 10 and lag 30, where real markets show
+slowly decaying positive values. The obvious fix is a second, slower excitation component, which is
+the standard construction for long memory.
+
+Before implementing it, the acceptance test was fixed in advance: *keep the change only if it
+improves clustering at both lag 10 and lag 30 while the variance ratio at 10s and 30s stays inside
+[0.7, 1.3]*. Measured, across a sweep of slow-component amplitudes:
+
+| slow self / cross | branching | acf&#124;r&#124; lag 1 | lag 10 | lag 30 | VR(10) | VR(30) |
+|---|---|---|---|---|---|---|
+| 0 (control)       | 0.29 | 0.186 | 0.008 | -0.011 | 1.087 | 1.234 |
+| 0.0035 / 0.0015   | 0.39 | 0.204 | 0.012 | -0.016 | 0.998 | 1.037 |
+| 0.0070 / 0.0030   | 0.49 | 0.236 | 0.002 |  0.011 | 0.774 | 0.812 |
+| 0.0120 / 0.0050   | 0.63 | 0.320 | 0.040 |  0.010 | 0.489 | 0.368 |
+| 0.0180 / 0.0080   | 0.81 | -0.042 | 0.041 | 0.036 | 0.937 | 1.195 |
+
+No setting passes. Amplitudes small enough to preserve the martingale leave lag-30 clustering
+unchanged or *worse*; amplitudes large enough to create clustering collapse the variance ratio to
+0.49 or below, and a mean-reverting mid would pay a market maker for bearing no risk, invalidating
+every PnL number in the repo. At the largest amplitude the process degenerates entirely (negative
+lag-1 autocorrelation).
+
+The same sweep was repeated over the *single* kernel's decay rate with the slow component disabled,
+and the result is identical in character: across every configuration with an acceptable variance
+ratio, clustering at lag 10 is ~0.01 and at lag 30 is ~0.
+
+The mechanism is specific to this model. Volatility clustering in the mid requires *bursts that move
+the price*, but a persistent, low-amplitude increase in the market-order rate is absorbed by a deep
+queue without moving the touch at all. Extra excitation therefore buys order-flow persistence --
+which shows up as mean reversion in the mid via imbalance -- rather than volatility persistence.
+Reproducing long-memory volatility would need a mechanism this simulator does not have, most
+plausibly stochastic volatility in the latent fundamental itself or a liquidity process that
+withdraws depth during bursts.
+
+The kernel was reverted to exactly its pre-investigation parameters, so this excursion changed no
+number in the repo. The failure is reported as a failing stylized fact rather than hidden, and the
+limitation is stated in the README.
