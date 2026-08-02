@@ -178,9 +178,14 @@ Ablations run on the first 100 held-out test seeds rather than all 200, because 
 variant needs its own dataset, fit and evaluation; their confidence intervals are correspondingly
 wider than the headline's. The seeds are a prefix of the same held-out set, never a re-draw.
 
-The feature ablation is the one that answers "does the policy actually use queue position?" — and
-it does: removing the queue group costs it, removing flow costs more, and a book-only policy is
-worst. The double-estimator ablation is a negative result and is reported as one: at these
+The feature ablation asks "does the policy actually use queue position?" The point estimates are
+monotone in the amount of information removed — dropping the queue group costs 16 ticks, dropping
+flow costs 24, and a book-only policy is 52 worse — but only the book-only variant clears
+significance (p = 0.046); the individual group ablations do not (p = 0.13 and p = 0.10). With 100
+episodes the study is underpowered for effects this size relative to episode variance. The honest
+statement is that the *ordering* is consistent with the policy using both groups, and that
+establishing it individually would need several times the episodes, not that each group is
+separately proven to matter. The double-estimator ablation is a negative result and is reported as one: at these
 hyperparameters it neither reduced Q-value inflation (1.8519 versus 1.8516) nor improved PnL
 (-2.99 ticks, 95% CI [-20.41, +13.80], p = 0.73), despite provably correcting the bias on the
 synthetic pure-noise diagnostic in `tests/test_fqi.py`. The likely reason is that the inflation

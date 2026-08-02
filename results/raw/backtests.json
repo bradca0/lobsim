@@ -1,6 +1,6 @@
 {
   "_provenance": {
-    "git_revision": "9f23055",
+    "git_revision": "fe13745",
     "machine": "arm64",
     "platform": "macOS-26.5.2-arm64-arm-64bit",
     "python": "3.12.4"
@@ -9,7 +9,7 @@
     "queue_aware",
     "optimistic"
   ],
-  "elapsed_seconds": 405.9365636670045,
+  "elapsed_seconds": 350.82484708300035,
   "fqi": {
     "feature_groups": [
       "book",
