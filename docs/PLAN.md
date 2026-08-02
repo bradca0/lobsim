@@ -21,7 +21,7 @@ The central claim the repo must support or refute with its own numbers:
 | M1 | Core matching engine: price-time priority, order lifecycle | done |
 | M2 | Queue-position tracking and the two fill models (optimistic / queue-aware) | done |
 | M3 | Synthetic order-flow generator (Hawkes + informed flow, ZI limit/cancel) | done |
-| M4 | Stylized-facts validation suite — simulator fidelity as a *measured* result | todo |
+| M4 | Stylized-facts validation suite — simulator fidelity as a *measured* result | done (10/11 facts pass) |
 | M5 | Market-making agent API, rule-based baselines, backtest harness, metrics | todo |
 | M6 | Learned policy: Fitted Q-Iteration with gradient-boosted trees | todo |
 | M7 | Statistical evaluation: paired block bootstrap, deflated Sharpe, Holm correction | todo |

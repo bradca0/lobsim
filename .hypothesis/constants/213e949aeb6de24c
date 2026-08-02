@@ -1,0 +1,4 @@
+# file: /Users/brad_ca0/projects/lobsim/src/lobsim/validation.py
+# hypothesis_version: 6.142.5
+
+[0.0, 0.05, 1.0, 3.0, 100, 'description', 'lag must be positive', 'name', 'nan', 'passes', 'q must be at least 2', 'target_high', 'target_low', 'units', 'value']

@@ -1,0 +1,175 @@
+{
+  "_provenance": {
+    "git_revision": "db32022",
+    "machine": "arm64",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.12.4"
+  },
+  "branching_ratio": 0.35555555555555557,
+  "config": {
+    "burn_in_seconds": 30.0,
+    "horizon_seconds": 300.0,
+    "sample_interval": 1.0
+  },
+  "diagnostics": {
+    "kurtosis_sd_across_episodes": 16.613450477437667,
+    "mean_market_orders_per_episode": 1341.85,
+    "mean_new_orders_per_episode": 7276.583333333333
+  },
+  "facts": [
+    {
+      "description": "Excess kurtosis of 1s mid log-returns; Gaussian is 0, real assets are strongly positive.",
+      "name": "return_excess_kurtosis",
+      "passes": true,
+      "target_high": 50.0,
+      "target_low": 0.5,
+      "units": "",
+      "value": 26.091673627525143
+    },
+    {
+      "description": "Autocorrelation of |returns| at lag 1: positive and persistent in real data.",
+      "name": "volatility_clustering_lag1",
+      "passes": true,
+      "target_high": 0.6,
+      "target_low": 0.02,
+      "units": "",
+      "value": 0.30866556262053824
+    },
+    {
+      "description": "Autocorrelation of |returns| at lag 10: decays slowly, staying above zero.",
+      "name": "volatility_clustering_lag10",
+      "passes": true,
+      "target_high": 0.4,
+      "target_low": 0.0,
+      "units": "",
+      "value": 0.0034103225146836324
+    },
+    {
+      "description": "Autocorrelation of raw returns: near zero, slightly negative from bid-ask bounce.",
+      "name": "raw_return_acf_lag1",
+      "passes": true,
+      "target_high": 0.05,
+      "target_low": -0.35,
+      "units": "",
+      "value": -0.16637448160320986
+    },
+    {
+      "description": "Lo-MacKinlay variance ratio at 10s. Near 1 means the mid is close to a martingale; far below 1 would mean a market maker is paid by mean reversion rather than by providing liquidity.",
+      "name": "variance_ratio_10",
+      "passes": true,
+      "target_high": 1.3,
+      "target_low": 0.7,
+      "units": "",
+      "value": 0.7306832771927646
+    },
+    {
+      "description": "Variance ratio at 30s: the mid must stay diffusive at longer horizons too.",
+      "name": "variance_ratio_30",
+      "passes": true,
+      "target_high": 1.3,
+      "target_low": 0.7,
+      "units": "",
+      "value": 0.7580437063121135
+    },
+    {
+      "description": "Median quoted spread. The target regime is tick-constrained: mostly 1 tick.",
+      "name": "median_spread_ticks",
+      "passes": true,
+      "target_high": 2.0,
+      "target_low": 1.0,
+      "units": "ticks",
+      "value": 1.0
+    },
+    {
+      "description": "Mean resting volume at the touch. Must be large enough that queue position matters.",
+      "name": "mean_touch_depth_lots",
+      "passes": true,
+      "target_high": 60.0,
+      "target_low": 5.0,
+      "units": "lots",
+      "value": 15.63616332905673
+    },
+    {
+      "description": "Hill tail index of order sizes; equity and futures data report roughly 1.5-2.5.",
+      "name": "order_size_tail_index",
+      "passes": true,
+      "target_high": 3.0,
+      "target_low": 1.4,
+      "units": "alpha",
+      "value": 1.8585829354467376
+    },
+    {
+      "description": "Autocorrelation of market-order signs: real order flow is strongly persistent.",
+      "name": "market_order_sign_acf_lag1",
+      "passes": true,
+      "target_high": 0.5,
+      "target_low": 0.0,
+      "units": "",
+      "value": 0.30067663436272407
+    },
+    {
+      "description": "Index of the fullest level away from the touch; real books are hump-shaped.",
+      "name": "depth_profile_hump_index",
+      "passes": false,
+      "target_high": 4.0,
+      "target_low": 1.0,
+      "units": "levels",
+      "value": 0.0
+    }
+  ],
+  "flow_params": {
+    "cancel_policy": "CancelPolicy.UNIFORM",
+    "cancel_rate_per_lot": "0.09",
+    "fundamental_vol": "0.45",
+    "informed_clip": "2.5",
+    "informed_kappa": "1.0",
+    "initial_depth_levels": "6",
+    "initial_level_size": "16",
+    "initial_price": "10000",
+    "lo_depth_exponent": "1.3",
+    "lo_max_depth": "10",
+    "lo_rate": "18.0",
+    "mo_baseline": "0.8",
+    "mo_cross_excite": "0.1",
+    "mo_decay": "0.9",
+    "mo_self_excite": "0.22",
+    "size_alpha": "1.8",
+    "size_max": "60"
+  },
+  "mean_depth_profile": [
+    15.63616332905673,
+    13.888324873096447,
+    10.05282534724159,
+    7.391978579795839,
+    5.6546828805712055,
+    4.441931165281419
+  ],
+  "n_episodes": 60,
+  "n_facts": 11,
+  "n_passing": 10,
+  "signature_plot": {
+    "1": 6.106118296259316e-09,
+    "10": 4.0637828143957e-09,
+    "2": 5.184181025660826e-09,
+    "30": 3.9950398467729904e-09,
+    "5": 4.244557095456821e-09
+  },
+  "spread_distribution": {
+    "1": 17101,
+    "10": 2,
+    "11": 1,
+    "2": 671,
+    "3": 88,
+    "4": 36,
+    "5": 13,
+    "6": 5,
+    "7": 5,
+    "8": 2,
+    "9": 3
+  },
+  "variance_ratio_by_horizon": {
+    "10": 0.7306832771927646,
+    "2": 0.8555123049679313,
+    "30": 0.7580437063121135
+  }
+}
