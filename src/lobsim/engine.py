@@ -16,6 +16,7 @@ Two engine policies deserve attention because they are where most backtests quie
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -131,7 +132,15 @@ class Simulation:
         seed: int,
         agent: Agent | None = None,
         fill_model: FillModel = FillModel.QUEUE_AWARE,
+        on_decision: Callable[[float, int], None] | None = None,
+        on_episode_end: Callable[[float], None] | None = None,
     ) -> None:
+        # Optional observation hooks used only by training data collection. They receive the
+        # mark-to-market and inventory at each decision and at the close, which is information the
+        # *agent* is deliberately not given at reward time: rewards are computed by the trainer,
+        # outside the policy, so a policy cannot condition on its own PnL when deciding.
+        self.on_decision = on_decision
+        self.on_episode_end = on_episode_end
         self.config = config
         self.flow_params = flow_params
         self.seed = seed
@@ -344,7 +353,11 @@ class Simulation:
                         trade_flow=self._tape_flow,
                         traded_volume=self._tape_volume,
                     )
-                    self._apply_quote(ts_ns, self.agent.act(ctx))
+                    mark = self.state.mark_to_market(self._reference_price())
+                    quote = self.agent.act(ctx)
+                    if self.on_decision is not None:
+                        self.on_decision(mark, self.state.inventory)
+                    self._apply_quote(ts_ns, quote)
                 self._tape_flow = 0
                 self._tape_volume = 0
                 next_decision += cfg.decision_interval
@@ -368,6 +381,8 @@ class Simulation:
 
         liquidation_cost = self._close_out(end_time)
         final_mid = self._reference_price()
+        if self.on_episode_end is not None:
+            self.on_episode_end(self.state.mark_to_market(final_mid))
 
         return EpisodeResult(
             seed=self.seed,

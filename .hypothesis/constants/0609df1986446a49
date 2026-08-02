@@ -1,0 +1,4 @@
+# file: /Users/brad_ca0/projects/lobsim/src/lobsim/training.py
+# hypothesis_version: 6.142.5
+
+[0.0, 10.0, 'book', 'flow', 'frac_nonzero', 'max', 'mean', 'min', 'n', 'position', 'queue', 'std']

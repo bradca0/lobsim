@@ -12,6 +12,7 @@ dependencies = [
     "scikit-learn==1.7.2",
     "matplotlib==3.10.7",
     "pandas==2.3.3",
+    "threadpoolctl==3.6.0",
 ]
 
 [project.optional-dependencies]
@@ -71,7 +72,7 @@ mypy_path = "src"
 packages = ["lobsim"]
 
 [[tool.mypy.overrides]]
-module = ["sklearn.*", "scipy.*", "matplotlib.*"]
+module = ["sklearn.*", "scipy.*", "matplotlib.*", "threadpoolctl.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

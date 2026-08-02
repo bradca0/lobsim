@@ -1,0 +1,4 @@
+# file: /Users/brad_ca0/projects/lobsim/src/lobsim/stats.py
+# hypothesis_version: 6.142.5
+
+[0.0, 0.05, 0.25, 0.5772156649015329, 0.95, 1.0, 2.0, 20.0, 2000, 10000, 'baseline', 'benchmark', 'ci_high', 'ci_low', 'deflated_sharpe', 'excludes_zero', 'high', 'level', 'low', 'mean_difference', 'n', 'n_trials', 'nan', 'p_adjusted', 'p_value', 'point', 'policy', 'rank', 'sharpe', 'sharpe_variance_used', 'significant', 't_statistic', 'wilcoxon_p']

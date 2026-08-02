@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+from threadpoolctl import threadpool_limits
 
 from lobsim.engine import Agent, EpisodeResult, SimConfig, Simulation
 from lobsim.flow import FlowParams
@@ -92,7 +93,12 @@ def run_one(
 
 def _worker(args: tuple[int, AgentFactory, BacktestConfig]) -> dict[str, float]:
     seed, factory, config = args
-    return episode_summary(run_one(seed, factory, config))
+    # Pin BLAS/OpenMP to a single thread inside each worker. A learned policy scores its actions
+    # once per decision on a *single* row, and sklearn's thread-pool setup dominates that call:
+    # measured at 12.4 ms per decision multi-threaded versus 0.8 ms pinned, a ~15x difference on
+    # pure overhead. Parallelism belongs at the episode level, where there is real work to spread.
+    with threadpool_limits(limits=1):
+        return episode_summary(run_one(seed, factory, config))
 
 
 def run_backtest(

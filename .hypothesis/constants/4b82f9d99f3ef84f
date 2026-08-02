@@ -1,0 +1,4 @@
+# file: /Users/brad_ca0/projects/lobsim/src/lobsim/backtest.py
+# hypothesis_version: 6.142.5
+
+['base', 'condition', 'metrics', 'n_episodes', 'nan', 'pnl', 'policy', 'seeds']
