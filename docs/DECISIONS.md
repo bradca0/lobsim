@@ -163,3 +163,60 @@ withdraws depth during bursts.
 The kernel was reverted to exactly its pre-investigation parameters, so this excursion changed no
 number in the repo. The failure is reported as a failing stylized fact rather than hidden, and the
 limitation is stated in the README.
+
+## D9 — Exploration must be temporally correlated, because queue priority is earned by waiting
+
+**Decision.** The behaviour policy that generates training data holds each exploratory action for a
+geometrically distributed run of ~10 decision steps rather than resampling every step.
+
+**Alternatives.** Independent uniform action selection each step, the textbook default.
+
+**Why.** Queue priority in this simulator -- as in a real book -- is earned by *not moving a quote*.
+An order that stays put advances as the volume ahead of it trades and cancels; re-pricing cancels
+it and sends it to the back of the new queue. An i.i.d. behaviour policy therefore churns its
+quotes on every decision, spends the entire episode near the back of whatever queue it just joined,
+and produces a dataset containing essentially no examples of the single mechanism the policy most
+needs to learn. It also makes the behaviour state distribution wildly unlike the one a greedy
+policy would visit, which is exactly the distribution shift batch RL is most fragile to.
+
+Measured: with i.i.d. exploration the learned policy collapsed onto quoting both touches
+unconditionally and returned -76.8 ticks on validation seeds; with persistent exploration and the
+same everything else it improved to -33.8. Both numbers are still negative -- see Limitations --
+but the gap is the cost of the wrong exploration scheme.
+
+## D10 — A running inventory penalty is required to make the control problem well-posed
+
+**Decision.** Training rewards are ``delta(mark-to-market) - phi * inventory^2``. Evaluation and
+every reported number use unpenalised PnL.
+
+**Alternatives.** Pure PnL reward; terminal-only inventory penalty; constraining inventory only
+through the engine's hard cap.
+
+**Why.** The simulator's mid is a near-martingale by design and by measurement (variance ratio 0.98
+at 10s). Under a martingale, carrying inventory has *zero expected PnL* -- it is pure variance. A
+risk-neutral value function therefore sees no reason to control position at all, and the greedy
+policy correctly concludes that quoting both sides unconditionally maximises expected reward. That
+is exactly what was observed: with ``phi = 0``, the learned policy's most-chosen action was
+"join both touches", its inventory RMS was 27 lots, and it reproduced the always-at-touch baseline's
+losses.
+
+The penalty is the discrete-time analogue of the running inventory term in Cartea-Jaimungal, and of
+the exponential utility that yields the Avellaneda-Stoikov reservation price. It is a device for
+expressing risk aversion, not a thumb on the scale: model selection and every reported result use
+unpenalised PnL, so a policy cannot win by being scored on its own training objective.
+
+## D11 — The deflated Sharpe ratio is corrected for *development* trials, not just the final grid
+
+**Decision.** The number of trials fed to the deflated Sharpe ratio is 24 -- every FQI
+configuration evaluated on validation seeds across the whole of development -- while
+`make reproduce` re-runs a grid of only 4.
+
+**Alternatives.** Using the grid size (4); not deflating at all.
+
+**Why.** The multiple-testing burden comes from every configuration whose validation result
+influenced the final choice, not from the subset that survived into the reproduction script.
+Reporting 4 would understate the search and inflate the deflated Sharpe, which is precisely the
+failure mode the statistic exists to catch. The count is maintained by hand in
+`scripts/train_policy.py::DEVELOPMENT_TRIALS`, which is an honesty mechanism rather than an
+automated one, and is stated as such. It excludes market-calibration sweeps, which did not select
+on policy performance -- see D7.
