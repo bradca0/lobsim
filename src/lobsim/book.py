@@ -49,6 +49,15 @@ class _Level:
     def is_empty(self) -> bool:
         return not self.orders
 
+    @property
+    def agent_volume(self) -> int:
+        return sum(o.size for o in self.tracked)
+
+    @property
+    def other_volume(self) -> int:
+        """Resting volume excluding the agent's own orders."""
+        return self.volume - self.agent_volume
+
 
 class LimitOrderBook:
     """An event-driven matching engine.
@@ -68,6 +77,8 @@ class LimitOrderBook:
         "_next_id",
         "_next_seq",
         "_orders",
+        "_side_agent_volume",
+        "_side_volume",
         "fill_model",
         "last_trade_price",
     )
@@ -81,6 +92,8 @@ class LimitOrderBook:
         self._bid_in_heap: set[int] = set()
         self._ask_in_heap: set[int] = set()
         self._orders: dict[int, Order] = {}
+        self._side_volume: dict[Side, int] = {Side.BUY: 0, Side.SELL: 0}
+        self._side_agent_volume: dict[Side, int] = {Side.BUY: 0, Side.SELL: 0}
         self._next_id = 1
         self._next_seq = 0
         self.last_trade_price: int | None = None
@@ -126,6 +139,16 @@ class LimitOrderBook:
     def volume_at(self, side: Side, price: int) -> int:
         level = self._levels(side).get(price)
         return 0 if level is None else level.volume
+
+    def other_volume_at(self, side: Side, price: int) -> int:
+        """Resting volume at a price excluding the agent's own orders."""
+        level = self._levels(side).get(price)
+        return 0 if level is None else level.other_volume
+
+    def total_volume(self, side: Side, *, include_agent: bool = True) -> int:
+        """Total resting volume on one side, maintained incrementally (O(1))."""
+        total = self._side_volume[side]
+        return total if include_agent else total - self._side_agent_volume[side]
 
     def orders_at(self, side: Side, price: int) -> list[Order]:
         """Resting orders at a price in time-priority order (front of queue first)."""
@@ -208,6 +231,9 @@ class LimitOrderBook:
         self._decrement_queue_ahead(level, ahead_of_seq=order.seq, amount=order.size)
         level.remove(order)
         del self._orders[order_id]
+        self._side_volume[order.side] -= order.size
+        if order.is_agent:
+            self._side_agent_volume[order.side] -= order.size
         if level.is_empty:
             del self._levels(order.side)[order.price]
         return True
@@ -242,6 +268,9 @@ class LimitOrderBook:
             order.volume_ahead = 0 if self.fill_model is FillModel.OPTIMISTIC else level.volume
         level.add(order)
         self._orders[order.order_id] = order
+        self._side_volume[order.side] += order.size
+        if order.is_agent:
+            self._side_agent_volume[order.side] += order.size
 
     def _push_price(self, side: Side, price: int) -> None:
         if side is Side.BUY:
@@ -291,6 +320,9 @@ class LimitOrderBook:
             maker.size -= qty
             taker.size -= qty
             level.volume -= qty
+            self._side_volume[maker.side] -= qty
+            if maker.is_agent:
+                self._side_agent_volume[maker.side] -= qty
             self._decrement_queue_ahead(level, ahead_of_seq=maker.seq, amount=qty)
             self.last_trade_price = level.price
             trades.append(

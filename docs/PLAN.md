@@ -20,7 +20,7 @@ The central claim the repo must support or refute with its own numbers:
 | M0 | Repo scaffolding: uv, pinned deps, src layout, ruff/mypy/pytest, CI, Makefile | done |
 | M1 | Core matching engine: price-time priority, order lifecycle | done |
 | M2 | Queue-position tracking and the two fill models (optimistic / queue-aware) | done |
-| M3 | Synthetic order-flow generator (Hawkes market orders, ZI limit/cancel flow) | todo |
+| M3 | Synthetic order-flow generator (Hawkes + informed flow, ZI limit/cancel) | done |
 | M4 | Stylized-facts validation suite — simulator fidelity as a *measured* result | todo |
 | M5 | Market-making agent API, rule-based baselines, backtest harness, metrics | todo |
 | M6 | Learned policy: Fitted Q-Iteration with gradient-boosted trees | todo |
@@ -34,9 +34,8 @@ The central claim the repo must support or refute with its own numbers:
 src/lobsim/
   types.py        value objects: Side, OrderType, Order, Trade, BookSnapshot
   book.py         LimitOrderBook — price-time priority matching, O(1) amortised level ops
-  queue_model.py  cancellation-position model; queue-ahead bookkeeping for tracked orders
   engine.py       discrete-event simulation loop, agent callback protocol
-  flow.py         synthetic order-flow generator (Hawkes + zero-intelligence)
+  flow.py         synthetic order-flow generator (ZI + Hawkes + latent fundamental)
   features.py     microstructure feature extraction from BookSnapshot history
   agents/
     base.py       Agent protocol + Quote action type
