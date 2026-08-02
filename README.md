@@ -1,5 +1,8 @@
 # lobsim — what queue position does to a market-making backtest
 
+[![CI](https://github.com/bradca0/lobsim/actions/workflows/ci.yml/badge.svg)](https://github.com/bradca0/lobsim/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A queue-aware limit order book simulator, a calibrated synthetic market validated against published
 stylized facts, and a learned market-making policy evaluated against rule-based baselines with
 paired bootstrap confidence intervals, multiple-testing correction, and a deflated Sharpe ratio.
@@ -233,7 +236,7 @@ before reading these.
 Needs Python 3.11+ and [uv](https://docs.astral.sh/uv/). No GPU; built and run on an M1 MacBook Air.
 
 ```bash
-git clone <this repo> && cd lobsim
+git clone https://github.com/bradca0/lobsim.git && cd lobsim
 make setup           # uv venv + pinned dependencies
 make test            # full suite, coverage gate on core logic
 make lint typecheck  # ruff + mypy --strict
