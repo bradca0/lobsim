@@ -1,4 +1,0 @@
-# file: /Users/brad_ca0/projects/lobsim/src/lobsim/agents/__init__.py
-# hypothesis_version: 6.142.5
-
-['AlwaysAtTouch', 'AvellanedaStoikov', 'FixedSpread', 'Inactive', 'InventorySkew']

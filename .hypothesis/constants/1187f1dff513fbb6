@@ -1,4 +1,0 @@
-# file: /Users/brad_ca0/projects/lobsim/src/lobsim/book.py
-# hypothesis_version: 6.142.5
-
-[2.0, '_ask_heap', '_ask_in_heap', '_ask_levels', '_bid_heap', '_bid_in_heap', '_bid_levels', '_next_id', '_next_seq', '_orders', '_side_agent_volume', '_side_volume', 'fill_model', 'last_trade_price']

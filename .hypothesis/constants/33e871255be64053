@@ -1,4 +1,0 @@
-# file: /Users/brad_ca0/projects/lobsim/src/lobsim/agents/baselines.py
-# hypothesis_version: 6.142.5
-
-[0.0, 1e-09, 0.05, 0.5, 1.0, 1.5, 2.0, 20.0, 'at_touch', 'avellaneda_stoikov', 'base', 'fixed_spread', 'inactive', 'inventory_skew']

@@ -1,4 +1,0 @@
-# file: /Users/brad_ca0/projects/lobsim/src/lobsim/agents/fqi.py
-# hypothesis_version: 6.142.5
-
-[0.0, 0.1, 0.98, 1.0, 120, '+', 'actions', 'book', 'config', 'discount', 'feature_groups', 'flow', 'fqi', 'learning_rate', 'max_depth', 'min_samples_leaf', 'n_actions', 'n_estimators', 'n_features', 'n_iterations', 'nan', 'position', 'pull', 'queue']

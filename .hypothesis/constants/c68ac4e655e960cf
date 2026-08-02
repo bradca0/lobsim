@@ -1,4 +1,0 @@
-# file: /Users/brad_ca0/projects/lobsim/src/lobsim/types.py
-# hypothesis_version: 6.142.5
-
-[0.0, 2.0, 1000000000, 'optimistic', 'queue_aware']

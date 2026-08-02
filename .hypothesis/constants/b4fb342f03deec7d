@@ -1,4 +1,0 @@
-# file: /Users/brad_ca0/projects/lobsim/src/lobsim/metrics.py
-# hypothesis_version: 6.142.5
-
-[0.0, 1.0, 5.0, 30.0, 'edge_per_lot', 'filled_volume', 'intra_episode_sharpe', 'inventory_max_abs', 'inventory_mean', 'inventory_pnl', 'inventory_rms', 'left', 'liquidation_cost', 'markout_1s', 'markout_30s', 'markout_5s', 'max_drawdown', 'n_fills', 'n_quotes', 'nan', 'pnl', 'pnl_per_lot', 'pnl_residual', 'post_only_rejections', 'seed', 'spread_capture']
