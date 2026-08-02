@@ -203,6 +203,12 @@ manufactured by a pessimistic choice.
 
 ## Selection-adjusted performance
 
+Sharpe here is per *episode* across the held-out test set — a 5-minute episode has no calendar
+meaning, so annualising it would be theatre. The deflated Sharpe (Bailey & López de Prado) asks
+whether a result survives the number of attempts that produced it: with enough configurations, some
+variant will look good on noise alone, and the "selection benchmark" column is the Sharpe that
+chance alone would be expected to reach.
+
 <!-- BEGIN:deflation -->
 | Policy | Sharpe (per episode) | Selection benchmark | Deflated Sharpe | Trials |
 |---|---:|---:|---:|---:|
@@ -212,6 +218,13 @@ manufactured by a pessimistic choice.
 
 The learned policy is deflated by 24 configurations — every FQI variant evaluated on validation seeds across development, not the 4 in the final grid.
 <!-- END:deflation -->
+
+Nothing here clears a bar worth boasting about. The learned policy has a negative Sharpe, so
+deflation is academic. `fixed_spread_2` at 0.955 and `inventory_skew` at 0.886 are single fixed
+rules that went through no search at all, which is the only reason their benchmark is zero — they
+are not "significant strategies", they are two rules that happened to sit slightly above break-even
+on 200 episodes. Read the confidence intervals in the headline table, both of which contain zero,
+before reading these.
 
 ---
 
@@ -240,7 +253,7 @@ Seeds are fixed and every episode is fully determined by its seed, so runs are r
 parallel and serial paths give identical answers.
 
 <!-- BEGIN:provenance -->
-Generated from commit `9f23055` on macOS-26.5.2-arm64-arm-64bit. 200 held-out test episodes (seeds 1000–1199), 60 agentless episodes for validation. Backtests took 6.8 minutes.
+Generated from commit `fe13745` on macOS-26.5.2-arm64-arm-64bit. 200 held-out test episodes (seeds 1000–1199), 60 agentless episodes for validation. Backtests took 5.8 minutes.
 <!-- END:provenance -->
 
 ---
