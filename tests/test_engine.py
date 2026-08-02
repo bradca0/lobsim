@@ -243,8 +243,7 @@ class TestFillAccounting:
         sim._apply_quote(0, Quote(bid_price=best_bid, ask_price=None, size=5))
         # Sweep the whole bid level so our order is guaranteed to trade.
         volume = sim.book.volume_at(Side.BUY, best_bid)
-        _, trades = sim.book.add_market(1, Side.SELL, volume)
-        sim._record_trades(trades, 1)
+        sim._submit_market(1, Side.SELL, volume, is_agent=False)
         assert sim.state.inventory == 5
         assert sim.state.cash == -5 * best_bid
         assert all(f.is_maker for f in sim.state.fills)

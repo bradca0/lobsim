@@ -1,0 +1,4 @@
+# file: /Users/brad_ca0/projects/lobsim/src/lobsim/features.py
+# hypothesis_version: 6.142.5
+
+[0.0, 1e-09, 0.5, 1.0, 4.0, 20.0, 'book', 'flow', 'has_ask', 'has_bid', 'imbalance_l1', 'imbalance_l5', 'inventory', 'log_touch_depth_ask', 'log_touch_depth_bid', 'microprice_gap', 'momentum_long', 'momentum_short', 'position', 'queue', 'queue_ahead_ask', 'queue_ahead_bid', 'spread', 'time_remaining', 'trade_flow_ewma', 'volatility', 'volume_ewma']

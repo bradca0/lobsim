@@ -26,7 +26,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from lobsim.engine import EpisodeResult
-from lobsim.types import Fill, NS_PER_SECOND
+from lobsim.types import NS_PER_SECOND, Fill
 
 
 @dataclass(frozen=True)

@@ -50,7 +50,7 @@ class Inactive(_BaseAgent):
 
     name: str = "inactive"
 
-    def act(self, ctx: MarketContext) -> Quote:
+    def act(self, ctx: MarketContext) -> Quote:  # noqa: ARG002 - the point is to ignore the market
         return Quote.flat()
 
 

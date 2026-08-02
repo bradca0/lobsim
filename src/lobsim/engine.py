@@ -106,11 +106,11 @@ class EpisodeResult:
     n_agent_quotes: int = 0
     post_only_rejections: int = 0
     liquidation_cost: float = 0.0
-    # Accumulated exactly, event by event, rather than reconstructed from sampled series -- see
-    # the note on _mark_inventory below.
+    # Accumulated exactly, one book mutation at a time, rather than reconstructed from sampled
+    # series -- see the block comment above Simulation._mark.
     spread_capture: float = 0.0
     inventory_pnl: float = 0.0
-    unmarkable_events: int = 0
+    one_sided_events: int = 0
 
     @property
     def n_fills(self) -> int:
@@ -156,8 +156,8 @@ class Simulation:
         self._tape_volume = 0
         self._spread_capture = 0.0
         self._inventory_pnl = 0.0
-        self._mark_mid: float | None = None
-        self._unmarkable = 0
+        self._ref_mid = float(flow_params.initial_price)
+        self._one_sided = 0
 
     # ------------------------------------------------------------------ agent plumbing
 
@@ -170,13 +170,30 @@ class Simulation:
             return None
         return order_id
 
-    def _record_trades(self, trades: list[Trade], ts: int) -> None:
-        """Convert engine trades into agent fills and update inventory and cash.
+    def _reference_price(self) -> float:
+        """The price everything is marked at: the current mid, or the last valid one.
 
-        ``mid_at_fill`` is the mid *after* the trade has been applied to the book, which is the
-        correct reference for a markout: it is the price a taker could next transact at.
+        A market order large enough to sweep a side clean leaves the mid *undefined*, and that
+        happens often enough in a thin book to matter. Skipping those moments -- the obvious
+        approach -- silently breaks the PnL identity, because the position still has to be marked
+        somewhere and realised cash still moves. Carrying the last valid mid forward is what a desk
+        actually does with a one-sided book, and it keeps a single consistent reference for spread
+        capture, inventory marking, and the reported PnL. Occurrences are counted and reported as
+        ``one_sided_events``.
         """
         mid = self.book.mid
+        if mid is None:
+            self._one_sided += 1
+            return self._ref_mid
+        self._ref_mid = mid
+        return mid
+
+    def _record_trades(self, trades: list[Trade], ts: int, mid: float) -> None:
+        """Convert engine trades into agent fills and update inventory and cash.
+
+        ``mid`` is the reference price *after* the trade has been applied to the book, which is the
+        correct basis for a markout: it is the price a taker could next transact at.
+        """
         for trade in trades:
             if not (trade.maker_is_agent or trade.taker_is_agent):
                 continue
@@ -191,37 +208,60 @@ class Simulation:
                 is_maker=is_maker,
                 mid_at_fill=mid,
             )
-            if mid is not None:
-                self._spread_capture += fill.side.sign * fill.size * (mid - fill.price)
+            self._spread_capture += fill.side.sign * fill.size * (mid - fill.price)
             self.state.apply(fill)
             if self.agent is not None:
                 self.agent.observe_fill(fill)
 
-    def _mark_inventory(self, inventory_before: float, mid_before: float | None) -> None:
-        """Attribute the mid move across one action to the position held going into it.
+    # -------------------------------------------------------- book mutation, exactly accounted
+    #
+    # Every mutation of the book goes through one of the three wrappers below. Each brackets a
+    # *single* operation so that the PnL decomposition is an identity rather than an approximation:
+    #
+    #     d(cash + q*m) = sum_fills sign*size*(m_after - price)   [spread capture]
+    #                   + q_before * (m_after - m_before)         [inventory PnL]
+    #
+    # The bracketing must be per-operation, not per-decision. Grouping several mutations under one
+    # bracket -- for instance reconciling both sides of a two-sided quote together -- breaks the
+    # identity whenever a fill happens on the first side and the mid then moves again on the
+    # second, because the position that carried the second move is no longer the position recorded
+    # at the start of the bracket. That bug was caught by the residual property test, not by
+    # inspection, which is exactly why the residual is asserted over many seeds and every policy.
 
-        Every action is bracketed by this call, which makes the PnL decomposition an *identity*
-        rather than an approximation::
+    def _mark(self, inventory_before: int, ref_before: float, ref_after: float) -> None:
+        if ref_after != ref_before:
+            self._inventory_pnl += inventory_before * (ref_after - ref_before)
 
-            d(cash + q*m) = sign*size*(m_after - price)   [spread capture, per fill]
-                          + q_before * (m_after - m_before)   [inventory PnL]
+    def _submit_limit(
+        self, ts: int, side: Side, price: int, size: int, *, is_agent: bool
+    ) -> tuple[int, list[Trade]]:
+        inventory_before, ref_before = self.state.inventory, self._reference_price()
+        order_id, trades = self.book.add_limit(ts, side, price, size, is_agent=is_agent)
+        ref_after = self._reference_price()
+        self._record_trades(trades, ts, ref_after)
+        self._mark(inventory_before, ref_before, ref_after)
+        return order_id, trades
 
-        Reconstructing the second term from a sampled inventory and mid series -- the usual
-        approach -- is only approximate, because both change between samples. Accumulating it here,
-        at every event, means ``spread_capture + inventory_pnl`` reproduces realised PnL to
-        floating-point precision, and tests assert exactly that.
-        """
-        mid_after = self.book.mid
-        if mid_before is None or mid_after is None:
-            self._unmarkable += 1
-            return
-        if mid_after != mid_before:
-            self._inventory_pnl += inventory_before * (mid_after - mid_before)
+    def _submit_market(
+        self, ts: int, side: Side, size: int, *, is_agent: bool
+    ) -> tuple[int, list[Trade]]:
+        inventory_before, ref_before = self.state.inventory, self._reference_price()
+        order_id, trades = self.book.add_market(ts, side, size, is_agent=is_agent)
+        ref_after = self._reference_price()
+        self._record_trades(trades, ts, ref_after)
+        self._mark(inventory_before, ref_before, ref_after)
+        return order_id, trades
+
+    def _submit_cancel(self, order_id: int) -> bool:
+        inventory_before, ref_before = self.state.inventory, self._reference_price()
+        cancelled = self.book.cancel(order_id)
+        self._mark(inventory_before, ref_before, self._reference_price())
+        return cancelled
 
     def _cancel_agent_side(self, side: Side) -> None:
         order_id = self._agent_order(side)
         if order_id is not None:
-            self.book.cancel(order_id)
+            self._submit_cancel(order_id)
             self._agent_order_ids[side] = None
 
     def _place(self, ts: int, side: Side, price: int, size: int) -> None:
@@ -232,8 +272,7 @@ class Simulation:
             # Would cross: post-only rejects rather than crossing into an aggressive order.
             self._post_only_rejections += 1
             return
-        order_id, trades = self.book.add_limit(ts, side, price, size, is_agent=True)
-        self._record_trades(trades, ts)
+        order_id, _ = self._submit_limit(ts, side, price, size, is_agent=True)
         if self.book.get_order(order_id) is not None:
             self._agent_order_ids[side] = order_id
 
@@ -283,7 +322,6 @@ class Simulation:
         trade_px: list[int] = []
         trade_ts: list[int] = []
 
-        last_mid = float(self.flow_params.initial_price)
         t = 0.0
         n_events = 0
 
@@ -306,38 +344,30 @@ class Simulation:
                         trade_flow=self._tape_flow,
                         traded_volume=self._tape_volume,
                     )
-                    inv_before, mid_before = self.state.inventory, self.book.mid
                     self._apply_quote(ts_ns, self.agent.act(ctx))
-                    self._mark_inventory(inv_before, mid_before)
                 self._tape_flow = 0
                 self._tape_volume = 0
                 next_decision += cfg.decision_interval
                 step += 1
             while next_sample <= t:
-                mid = self.book.mid
-                if mid is not None:
-                    last_mid = mid
+                reference = self._reference_price()
                 ts_log.append(int(next_sample * 1e9))
-                mid_log.append(last_mid)
+                mid_log.append(reference)
                 inv_log.append(self.state.inventory)
-                mtm_log.append(self.state.mark_to_market(last_mid))
+                mtm_log.append(self.state.mark_to_market(reference))
                 next_sample += cfg.sample_interval
 
             if event is not None:
                 n_events += 1
-                inv_before, mid_before = self.state.inventory, self.book.mid
                 trades = self._apply_event(event)
-                self._mark_inventory(inv_before, mid_before)
                 for trade in trades:
                     trade_px.append(trade.price)
                     trade_ts.append(trade.ts)
                     self._tape_flow += trade.aggressor.sign * trade.size
                     self._tape_volume += trade.size
 
-        inv_before, mid_before = self.state.inventory, self.book.mid
         liquidation_cost = self._close_out(end_time)
-        self._mark_inventory(inv_before, mid_before)
-        final_mid = self.book.mid if self.book.mid is not None else last_mid
+        final_mid = self._reference_price()
 
         return EpisodeResult(
             seed=self.seed,
@@ -357,20 +387,20 @@ class Simulation:
             liquidation_cost=liquidation_cost,
             spread_capture=self._spread_capture,
             inventory_pnl=self._inventory_pnl,
-            unmarkable_events=self._unmarkable,
+            one_sided_events=self._one_sided,
         )
 
     def _apply_event(self, event: FlowEvent) -> list[Trade]:
         """Route a background event into the book and capture any agent executions."""
         if event.kind is EventKind.MARKET:
-            _, trades = self.book.add_market(event.ts, event.side, event.size)
-            self._record_trades(trades, event.ts)
+            _, trades = self._submit_market(event.ts, event.side, event.size, is_agent=False)
             return trades
         if event.kind is EventKind.LIMIT:
-            _, trades = self.book.add_limit(event.ts, event.side, event.price, event.size)
-            self._record_trades(trades, event.ts)
+            _, trades = self._submit_limit(
+                event.ts, event.side, event.price, event.size, is_agent=False
+            )
             return trades
-        self.book.cancel(event.order_id)
+        self._submit_cancel(event.order_id)
         return []
 
     def _close_out(self, end_time: float) -> float:
@@ -386,12 +416,9 @@ class Simulation:
         inventory = self.state.inventory
         if not self.config.liquidate_at_close or inventory == 0:
             return 0.0
-        mid_before = self.book.mid
+        mid_before = self._reference_price()
         side = Side.SELL if inventory > 0 else Side.BUY
-        _, trades = self.book.add_market(ts, side, abs(inventory), is_agent=True)
-        self._record_trades(trades, ts)
-        if mid_before is None:
-            return 0.0
+        _, trades = self._submit_market(ts, side, abs(inventory), is_agent=True)
         # Slippage relative to marking the whole position at mid.
         executed = sum(t.size * t.price for t in trades)
         volume = sum(t.size for t in trades)
