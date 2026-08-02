@@ -91,14 +91,29 @@ def run_one(
     return simulation.run()
 
 
-def _worker(args: tuple[int, AgentFactory, BacktestConfig]) -> dict[str, float]:
-    seed, factory, config = args
+# Per-worker state, populated once by the pool initialiser. A learned policy carries a fitted
+# model of several megabytes; sending it inside every task would serialise it once per *episode*
+# rather than once per *process*, which on a 200-episode run means hundreds of redundant pickles
+# and enough memory churn to dominate the wall clock on a laptop. The initialiser pays that cost
+# once per worker.
+_WORKER_FACTORY: AgentFactory | None = None
+_WORKER_CONFIG: BacktestConfig | None = None
+
+
+def _init_worker(factory: AgentFactory, config: BacktestConfig) -> None:
+    global _WORKER_FACTORY, _WORKER_CONFIG
+    _WORKER_FACTORY = factory
+    _WORKER_CONFIG = config
     # Pin BLAS/OpenMP to a single thread inside each worker. A learned policy scores its actions
     # once per decision on a *single* row, and sklearn's thread-pool setup dominates that call:
-    # measured at 12.4 ms per decision multi-threaded versus 0.8 ms pinned, a ~15x difference on
-    # pure overhead. Parallelism belongs at the episode level, where there is real work to spread.
-    with threadpool_limits(limits=1):
-        return episode_summary(run_one(seed, factory, config))
+    # measured at 12.4 ms per decision multi-threaded versus 0.8 ms pinned. Parallelism belongs at
+    # the episode level, where there is real work to spread.
+    threadpool_limits(limits=1)
+
+
+def _worker(seed: int) -> dict[str, float]:
+    assert _WORKER_FACTORY is not None and _WORKER_CONFIG is not None
+    return episode_summary(run_one(seed, _WORKER_FACTORY, _WORKER_CONFIG))
 
 
 def run_backtest(
@@ -115,23 +130,28 @@ def run_backtest(
     because each episode's randomness is fully determined by its seed.
     """
     config = config or BacktestConfig()
-    tasks = [(seed, factory, config) for seed in seeds]
+    seeds = list(seeds)
 
     summaries: list[dict[str, float]]
     if n_jobs == 1:
         summaries = []
-        for index, task in enumerate(tasks):
-            summaries.append(_worker(task))
-            if progress:
-                print(f"    {policy}: {index + 1}/{len(tasks)}", end="\r", flush=True)
+        with threadpool_limits(limits=1):
+            for index, seed in enumerate(seeds):
+                summaries.append(episode_summary(run_one(seed, factory, config)))
+                if progress:
+                    print(f"    {policy}: {index + 1}/{len(seeds)}", end="\r", flush=True)
         if progress:
             print()
     else:
-        workers = min(n_jobs, len(tasks)) if n_jobs > 0 else default_jobs()
-        with ProcessPoolExecutor(max_workers=workers) as pool:
-            summaries = list(pool.map(_worker, tasks, chunksize=4))
+        workers = min(n_jobs, len(seeds)) if n_jobs > 0 else min(default_jobs(), len(seeds))
+        with ProcessPoolExecutor(
+            max_workers=workers,
+            initializer=_init_worker,
+            initargs=(factory, config),
+        ) as pool:
+            summaries = list(pool.map(_worker, seeds, chunksize=8))
         if progress:
-            print(f"    {policy}: {len(tasks)}/{len(tasks)} (parallel x{workers})")
+            print(f"    {policy}: {len(seeds)}/{len(seeds)} (parallel x{workers})")
 
     keys = summaries[0].keys()
     metrics = {key: np.array([s[key] for s in summaries], dtype=np.float64) for key in keys}

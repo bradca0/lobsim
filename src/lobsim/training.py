@@ -114,13 +114,25 @@ def collect_episode(
     return recorder.transitions
 
 
-def _collect_worker(
-    args: tuple[int, float, BacktestConfig, QFunction | None, tuple[str, ...], int, float, float],
-) -> list[Transition]:
-    # See the note in lobsim.backtest._worker: single-row inference is dominated by thread-pool
-    # setup, so workers run single-threaded and parallelism lives at the episode level.
-    with threadpool_limits(limits=1):
-        return collect_episode(*args)
+# See the note in lobsim.backtest: per-worker state set once by the pool initialiser, so a fitted
+# model is serialised once per process rather than once per episode.
+_COLLECT_ARGS: (
+    tuple[float, BacktestConfig, QFunction | None, tuple[str, ...], int, float, float] | None
+) = None
+
+
+def _init_collect(
+    args: tuple[float, BacktestConfig, QFunction | None, tuple[str, ...], int, float, float],
+) -> None:
+    global _COLLECT_ARGS
+    _COLLECT_ARGS = args
+    threadpool_limits(limits=1)
+
+
+def _collect_worker(seed: int) -> list[Transition]:
+    assert _COLLECT_ARGS is not None
+    epsilon, config, model, groups, size, penalty, persistence = _COLLECT_ARGS
+    return collect_episode(seed, epsilon, config, model, groups, size, penalty, persistence)
 
 
 def collect_dataset(
@@ -136,21 +148,30 @@ def collect_dataset(
     progress: bool = False,
 ) -> list[Transition]:
     """Collect transitions across many seeds, in parallel."""
-    tasks = [
-        (seed, epsilon, config, model, feature_groups, size, inventory_penalty, action_persistence)
-        for seed in seeds
-    ]
-    workers = min(n_jobs or default_jobs(), len(tasks))
+    seeds = list(seeds)
+    shared = (
+        epsilon,
+        config,
+        model,
+        feature_groups,
+        size,
+        inventory_penalty,
+        action_persistence,
+    )
+    workers = min(n_jobs or default_jobs(), len(seeds))
     out: list[Transition] = []
     if workers <= 1:
-        for task in tasks:
-            out.extend(_collect_worker(task))
+        with threadpool_limits(limits=1):
+            for seed in seeds:
+                out.extend(collect_episode(seed, *shared))
     else:
-        with ProcessPoolExecutor(max_workers=workers) as pool:
-            for batch in pool.map(_collect_worker, tasks, chunksize=2):
+        with ProcessPoolExecutor(
+            max_workers=workers, initializer=_init_collect, initargs=(shared,)
+        ) as pool:
+            for batch in pool.map(_collect_worker, seeds, chunksize=4):
                 out.extend(batch)
     if progress:
-        print(f"    collected {len(out):,} transitions from {len(tasks)} episodes")
+        print(f"    collected {len(out):,} transitions from {len(seeds)} episodes")
     return out
 
 

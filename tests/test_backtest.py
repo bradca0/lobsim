@@ -34,16 +34,20 @@ class TestDeterminism:
         np.testing.assert_array_equal(first.pnl, second.pnl)
 
     def test_a_fresh_agent_is_built_for_every_episode(self) -> None:
-        """Reusing one instance would let episode k-1's state leak into episode k."""
-        instances = []
+        """Reusing one instance would let episode k-1's state leak into episode k.
+
+        Counted by construction rather than by ``id()``: CPython reuses the addresses of freed
+        objects, so distinct agents can and do share an id once the previous one is collected.
+        """
+        constructed = 0
 
         def factory() -> AlwaysAtTouch:
-            agent = AlwaysAtTouch(size=1)
-            instances.append(id(agent))
-            return agent
+            nonlocal constructed
+            constructed += 1
+            return AlwaysAtTouch(size=1)
 
         run_backtest("touch", factory, SEEDS, SHORT, n_jobs=1)
-        assert len(set(instances)) == len(SEEDS)
+        assert constructed == len(SEEDS)
 
 
 class TestShape:
