@@ -163,6 +163,14 @@ def run_backtest(
     )
 
 
+# Worker processes are memory-bound, not CPU-bound. Each spawned worker re-imports numpy, scipy
+# and scikit-learn, which costs several hundred megabytes before a single episode runs. On the 8 GB
+# machine this was developed on, six workers drove free memory to ~65 MB and the run stalled
+# outright -- every process alive, none making progress. Four fits comfortably and is barely slower
+# than six, because the extra parallelism was being spent on swap.
+MAX_WORKERS = 4
+
+
 def default_jobs() -> int:
-    """Leave two cores for the OS; this runs on a laptop."""
-    return max(1, (os.cpu_count() or 2) - 2)
+    """Leave headroom for the OS, and cap for memory rather than for cores."""
+    return max(1, min((os.cpu_count() or 2) - 2, MAX_WORKERS))
