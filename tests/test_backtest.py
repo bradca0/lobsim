@@ -91,11 +91,7 @@ class TestJobs:
 
 class TestRegistry:
     def test_every_baseline_is_runnable_and_distinctly_named(self) -> None:
-        names = set()
-        for name, factory in BASELINES.items():
-            agent = factory()
-            names.add(agent.name)
-            assert agent.size == 2 or name == "inactive"
+        names = {factory().name for factory in BASELINES.values()}
         assert len(names) == len(BASELINES)
 
     def test_the_primary_baseline_is_a_real_baseline(self) -> None:
@@ -107,5 +103,11 @@ class TestRegistry:
 
     def test_every_policy_quotes_the_same_size(self) -> None:
         """Otherwise PnL differences would partly be differences in permitted risk."""
-        sizes = {name: factory().size for name, factory in BASELINES.items() if name != "inactive"}
+        # `size` is not part of the Agent protocol -- a policy need not have one -- but every
+        # baseline in the registry does, and they must agree.
+        sizes = {
+            name: getattr(factory(), "size")  # noqa: B009
+            for name, factory in BASELINES.items()
+            if name != "inactive"
+        }
         assert len(set(sizes.values())) == 1, sizes

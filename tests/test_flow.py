@@ -140,9 +140,11 @@ class TestEventGeneration:
     def test_cancellations_never_target_agent_orders(self) -> None:
         """The background market may not pull the agent's quotes out from under it."""
         generator, book = make(seed=3)
+        best_bid, best_ask = book.best_bid, book.best_ask
+        assert best_bid is not None and best_ask is not None
         agent_ids = {
-            book.add_limit(0, Side.BUY, book.best_bid, 5, is_agent=True)[0],
-            book.add_limit(0, Side.SELL, book.best_ask, 5, is_agent=True)[0],
+            book.add_limit(0, Side.BUY, best_bid, 5, is_agent=True)[0],
+            book.add_limit(0, Side.SELL, best_ask, 5, is_agent=True)[0],
         }
         t = 0.0
         cancels = 0

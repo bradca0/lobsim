@@ -1,0 +1,165 @@
+{
+  "_provenance": {
+    "git_revision": "fef465a",
+    "machine": "arm64",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.12.4"
+  },
+  "development_trials": 24,
+  "elapsed_seconds": 378.740530916999,
+  "feature_importance": {
+    "has_ask": 0.0,
+    "has_bid": 0.0,
+    "imbalance_l1": 0.42934993272886907,
+    "imbalance_l5": 0.3061930687819311,
+    "inventory": 19.377015917877486,
+    "inventory_time_pressure": 0.11209505421925803,
+    "log_touch_depth_ask": 0.19178033214397397,
+    "log_touch_depth_bid": 0.202469413569061,
+    "microprice_gap": 0.45474023829194643,
+    "momentum_long": 0.015378022565018029,
+    "momentum_short": 0.020856318736311868,
+    "queue_ahead_ask": 0.017869231091542547,
+    "queue_ahead_bid": 0.003517672618737507,
+    "spread": 0.003768115453103358,
+    "time_remaining": 0.1568524096891195,
+    "trade_flow_ewma": 0.590632016331597,
+    "volatility": 0.007888290386673066,
+    "volume_ewma": 0.014951852215195306
+  },
+  "grid_size": 4,
+  "model": {
+    "actions": [
+      "bid:+0/ask:+0",
+      "bid:+0/ask:+1",
+      "bid:+0/ask:+2",
+      "bid:+0/ask:pull",
+      "bid:+1/ask:+0",
+      "bid:+1/ask:+1",
+      "bid:+1/ask:+2",
+      "bid:+1/ask:pull",
+      "bid:+2/ask:+0",
+      "bid:+2/ask:+1",
+      "bid:+2/ask:+2",
+      "bid:+2/ask:pull",
+      "bid:pull/ask:+0",
+      "bid:pull/ask:+1",
+      "bid:pull/ask:+2",
+      "bid:pull/ask:pull"
+    ],
+    "all_estimators_fitted": true,
+    "config": {
+      "discount": 0.97,
+      "feature_groups": [
+        "book",
+        "flow",
+        "queue",
+        "position"
+      ],
+      "learning_rate": 0.1,
+      "max_depth": 4,
+      "min_samples_leaf": 300,
+      "n_iterations": 3
+    },
+    "n_actions": 16,
+    "n_estimators": 2,
+    "n_features": 18
+  },
+  "protocol": {
+    "action_persistence": 10.0,
+    "agent_size": 2,
+    "behaviour_epsilon": 1.0,
+    "n_train_episodes": 200,
+    "train_seeds": [
+      0,
+      199
+    ],
+    "validation_seeds": [
+      500,
+      559
+    ]
+  },
+  "reward_summary": {
+    "frac_nonzero": 0.9246410684474123,
+    "max": 203.04,
+    "mean": -2.864323956594324,
+    "min": -275.0,
+    "n": 119800.0,
+    "std": 6.998746945351633
+  },
+  "selected": {
+    "discount": 0.97,
+    "inventory_penalty": 0.01,
+    "label": "iters3_depth4_lr0.1_leaf300_phi0.01_g[book+flow+queue+position]",
+    "min_samples_leaf": 300,
+    "target_inflation": 1.851869812508533,
+    "target_scale": [
+      6.027166579108399,
+      8.62249901280902,
+      11.161527842811168
+    ],
+    "validation_pnl": -26.966666666666665
+  },
+  "trials": [
+    {
+      "discount": 0.97,
+      "inventory_penalty": 0.01,
+      "label": "iters3_depth4_lr0.1_leaf100_phi0.01_g[book+flow+queue+position]",
+      "min_samples_leaf": 100,
+      "target_inflation": 1.853875813519404,
+      "target_scale": [
+        6.043080837660081,
+        8.650590847181961,
+        11.203121404080603
+      ],
+      "validation_inventory_rms": 10.17210257908344,
+      "validation_n_fills": 45.666666666666664,
+      "validation_pnl": -33.43333333333333
+    },
+    {
+      "discount": 0.97,
+      "inventory_penalty": 0.01,
+      "label": "iters3_depth4_lr0.1_leaf300_phi0.01_g[book+flow+queue+position]",
+      "min_samples_leaf": 300,
+      "target_inflation": 1.851869812508533,
+      "target_scale": [
+        6.027166579108399,
+        8.62249901280902,
+        11.161527842811168
+      ],
+      "validation_inventory_rms": 7.925112052235945,
+      "validation_n_fills": 35.71666666666667,
+      "validation_pnl": -26.966666666666665
+    },
+    {
+      "discount": 0.97,
+      "inventory_penalty": 0.03,
+      "label": "iters3_depth4_lr0.1_leaf100_phi0.03_g[book+flow+queue+position]",
+      "min_samples_leaf": 100,
+      "target_inflation": 1.9249315274979841,
+      "target_scale": [
+        16.816108120270023,
+        24.703129333811418,
+        32.36985669052263
+      ],
+      "validation_inventory_rms": 6.974600504774459,
+      "validation_n_fills": 33.266666666666666,
+      "validation_pnl": -31.95
+    },
+    {
+      "discount": 0.97,
+      "inventory_penalty": 0.03,
+      "label": "iters3_depth4_lr0.1_leaf300_phi0.03_g[book+flow+queue+position]",
+      "min_samples_leaf": 300,
+      "target_inflation": 1.9231240758723076,
+      "target_scale": [
+        16.77453615619702,
+        24.570932181247578,
+        32.259514343573
+      ],
+      "validation_inventory_rms": 5.978846386331244,
+      "validation_n_fills": 28.366666666666667,
+      "validation_pnl": -31.583333333333332
+    }
+  ]
+}

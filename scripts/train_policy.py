@@ -18,11 +18,19 @@ from __future__ import annotations
 import itertools
 import pickle
 import time
+from functools import partial
 
 import numpy as np
 
-from lobsim.agents.fqi import FQIAgent, FQIConfig, fit_fqi, model_payload, permutation_importance
-from lobsim.backtest import BacktestConfig, run_backtest
+from lobsim.agents.fqi import (
+    FQIAgent,
+    FQIConfig,
+    QFunction,
+    fit_fqi,
+    model_payload,
+    permutation_importance,
+)
+from lobsim.backtest import AgentFactory, BacktestConfig, run_backtest
 from lobsim.experiment import (
     RAW_DIR,
     TRAIN_SEEDS,
@@ -69,7 +77,7 @@ def main() -> None:
             print(f"    phi={penalty}: {reward_summary(datasets[penalty])}")
 
     trials = []
-    best: tuple[float, FQIConfig, object] | None = None
+    best: tuple[float, FQIConfig, QFunction] | None = None
 
     with stage("fit and select on validation seeds"):
         grid = list(itertools.product(INVENTORY_PENALTIES, DISCOUNTS, MIN_SAMPLES_LEAF))
@@ -109,17 +117,19 @@ def main() -> None:
                 f"validation PnL {pnl:+.2f}, inflation {fitted.target_inflation:.2f}"
             )
             if best is None or pnl > best[0]:
-                best = (pnl, fqi_config, fitted)
+                best = (pnl, fqi_config, fitted.model)
+                best_scale = fitted.target_scale
+                best_inflation = fitted.target_inflation
 
     assert best is not None
-    best_pnl, best_config, best_fit = best
+    best_pnl, best_config, best_model = best
     print(f"\n  selected: {best_config.label()} with validation PnL {best_pnl:+.2f}")
 
     with stage("diagnostics"):
         states = np.stack([t.state for t in datasets[best_config.inventory_penalty][:6000]])
         reference = FQIAgent(feature_groups=best_config.feature_groups)
         importances = permutation_importance(
-            best_fit.model,  # type: ignore[attr-defined]
+            best_model,
             states,
             reference.feature_names(),
             np.random.default_rng(0),
@@ -132,7 +142,7 @@ def main() -> None:
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     with MODEL_PATH.open("wb") as handle:
         pickle.dump(
-            {"model": best_fit.model, "config": best_config},  # type: ignore[attr-defined]
+            {"model": best_model, "config": best_config},
             handle,
         )
     print(f"  wrote {MODEL_PATH.relative_to(MODEL_PATH.parents[2])}")
@@ -157,10 +167,10 @@ def main() -> None:
                 "inventory_penalty": best_config.inventory_penalty,
                 "discount": best_config.discount,
                 "min_samples_leaf": best_config.min_samples_leaf,
-                "target_inflation": best_fit.target_inflation,  # type: ignore[attr-defined]
-                "target_scale": best_fit.target_scale,  # type: ignore[attr-defined]
+                "target_inflation": best_inflation,
+                "target_scale": best_scale,
             },
-            "model": model_payload(best_fit.model),  # type: ignore[attr-defined]
+            "model": model_payload(best_model),
             "feature_importance": dict(ranked),
             "reward_summary": reward_summary(datasets[best_config.inventory_penalty]),
             "elapsed_seconds": time.perf_counter() - started,
@@ -168,9 +178,7 @@ def main() -> None:
     )
 
 
-def _factory(model: object):  # type: ignore[no-untyped-def]
-    from functools import partial
-
+def _factory(model: QFunction) -> AgentFactory:
     return partial(FQIAgent, model=model, epsilon=0.0, size=AGENT_SIZE)
 
 

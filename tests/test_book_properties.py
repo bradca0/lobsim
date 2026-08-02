@@ -207,7 +207,7 @@ def test_optimistic_fills_dominate_queue_aware_fills(ops: list[Operation]) -> No
     queue_filled = 0
     for ts, op in enumerate(ops):
         for lob, tag in ((optimistic_lob, "opt"), (queue_lob, "queue")):
-            trades = []
+            trades: list[Trade] = []
             match op:
                 case Submit(side, price, size, is_agent):
                     _, trades = lob.add_limit(ts, side, price, size, is_agent=is_agent)

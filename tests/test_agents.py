@@ -8,6 +8,7 @@ test in the repo: if it ever fails, the accounting is broken and no other number
 from __future__ import annotations
 
 import math
+from typing import TypeVar
 
 import numpy as np
 import pytest
@@ -19,6 +20,7 @@ from lobsim.agents import (
     Inactive,
     InventorySkew,
 )
+from lobsim.agents.baselines import _BaseAgent
 from lobsim.engine import MarketContext, SimConfig, run_episode
 from lobsim.metrics import decompose_pnl
 from lobsim.types import BookSnapshot
@@ -52,7 +54,10 @@ def empty_context() -> MarketContext:
     )
 
 
-def fresh(agent):  # type: ignore[no-untyped-def]
+A = TypeVar("A", bound=_BaseAgent)
+
+
+def fresh(agent: A) -> A:
     agent.reset(np.random.default_rng(0))
     return agent
 

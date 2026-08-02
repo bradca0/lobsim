@@ -7,6 +7,7 @@ as a property over many seeds and every policy rather than on a single hand-pick
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
 
 import numpy as np
@@ -29,7 +30,7 @@ from lobsim.types import Fill, FillModel, Side
 
 SHORT = SimConfig(horizon_seconds=90.0, burn_in_seconds=10.0)
 
-POLICIES = [
+POLICIES: list[Callable[[], object]] = [
     partial(AlwaysAtTouch, size=2),
     partial(InventorySkew, size=2),
     partial(FixedSpread, size=2, half_spread=2),
@@ -47,7 +48,7 @@ class TestDecompositionIdentity:
     def test_spread_capture_plus_inventory_pnl_equals_realised_pnl(
         self, seed: int, policy_index: int
     ) -> None:
-        result = run_one(seed, POLICIES[policy_index], BacktestConfig(sim=SHORT))
+        result = run_one(seed, POLICIES[policy_index], BacktestConfig(sim=SHORT))  # type: ignore[arg-type]
         decomposition = decompose_pnl(result)
         assert decomposition.residual == pytest.approx(0.0, abs=1e-6)
 

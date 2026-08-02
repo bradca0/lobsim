@@ -10,6 +10,8 @@ Usage: python scripts/analyse_results.py
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 from lobsim.experiment import read_json, stage, write_json
@@ -24,7 +26,7 @@ from lobsim.stats import (
 N_BOOT = 10_000
 
 
-def _metric(block: dict, policy: str, key: str) -> np.ndarray:
+def _metric(block: dict[str, Any], policy: str, key: str) -> np.ndarray:
     return np.asarray(block[policy]["metrics"][key], dtype=np.float64)
 
 
@@ -92,8 +94,8 @@ def main() -> None:
             )
         adjusted = holm_bonferroni(p_values)
         for policy, record in adjusted.items():
-            comparisons[policy]["p_adjusted"] = record["p_adjusted"]  # type: ignore[index]
-            comparisons[policy]["significant_holm"] = bool(record["significant"])  # type: ignore[index]
+            comparisons[policy]["p_adjusted"] = record["p_adjusted"]
+            comparisons[policy]["significant_holm"] = bool(record["significant"])
         summary["comparisons_vs_baseline"] = comparisons
 
     with stage("fill-model effect"):

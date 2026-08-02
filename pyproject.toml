@@ -71,7 +71,7 @@ warn_unreachable = true
 disallow_any_generics = true
 plugins = []
 mypy_path = "src"
-packages = ["lobsim"]
+files = ["src", "scripts", "tests"]
 
 [[tool.mypy.overrides]]
 module = ["sklearn.*", "scipy.*", "matplotlib.*", "threadpoolctl.*"]

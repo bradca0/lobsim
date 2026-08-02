@@ -128,6 +128,7 @@ class TestQueuePriorityOnRequote:
         sim.flow.seed_book(sim.book)
         sim._apply_quote(0, Quote(bid_price=9_999, ask_price=None, size=1))
         first_id = sim._agent_order(Side.BUY)
+        assert first_id is not None
         sim.book.add_limit(1, Side.BUY, 9_998, 30)
         sim._apply_quote(2, Quote(bid_price=9_998, ask_price=None, size=1))
 

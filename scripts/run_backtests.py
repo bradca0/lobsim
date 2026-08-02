@@ -10,6 +10,7 @@ Usage: python scripts/run_backtests.py
 from __future__ import annotations
 
 import time
+from typing import Any
 
 from lobsim.backtest import BacktestConfig, run_backtest
 from lobsim.experiment import RAW_DIR, TEST_SEEDS, stage, write_json
@@ -33,7 +34,7 @@ def main() -> None:
         print("  no trained policy found; run scripts/train_policy.py first")
 
     policies = all_policies(fqi_factory)
-    results: dict[str, dict[str, dict[str, object]]] = {}
+    results: dict[str, dict[str, dict[str, Any]]] = {}
 
     for condition_name, condition in CONDITIONS.items():
         with stage(f"backtest [{condition_name}]"):
@@ -58,8 +59,8 @@ def main() -> None:
     # The control: an inactive policy must report exactly zero PnL in every condition. If it does
     # not, the accounting is broken and no other number in this file means anything.
     for condition_name, block in results.items():
-        pnl = block["inactive"]["metrics"]["pnl"]  # type: ignore[index]
-        assert all(value == 0.0 for value in pnl), (  # type: ignore[union-attr]
+        pnl = block["inactive"]["metrics"]["pnl"]
+        assert all(value == 0.0 for value in pnl), (
             f"control failed: inactive policy has non-zero PnL under {condition_name}"
         )
 

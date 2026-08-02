@@ -16,6 +16,7 @@ Usage: python scripts/render_readme_tables.py
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from lobsim.experiment import REPO_ROOT, read_json, stage
 
@@ -39,7 +40,7 @@ def _fmt(value: float, places: int = 2, sign: bool = True) -> str:
     return f"{value:{spec}}"
 
 
-def claim_block(analysis: dict) -> str:
+def claim_block(analysis: dict[str, Any]) -> str:
     """The one-paragraph headline, computed rather than asserted."""
     effects = analysis["fill_model_effect"]
     baseline = analysis["primary_baseline"]
@@ -69,7 +70,7 @@ def claim_block(analysis: dict) -> str:
     return "\n".join(lines)
 
 
-def headline_table(analysis: dict) -> str:
+def headline_table(analysis: dict[str, Any]) -> str:
     block = analysis["per_condition"]["queue_aware"]
     comparisons = analysis.get("comparisons_vs_baseline", {})
     baseline = analysis["primary_baseline"]
@@ -102,7 +103,7 @@ def headline_table(analysis: dict) -> str:
     return "\n".join(rows)
 
 
-def fill_model_table(analysis: dict) -> str:
+def fill_model_table(analysis: dict[str, Any]) -> str:
     effects = analysis["fill_model_effect"]
     rows = [
         "| Policy | Optimistic fills | Queue-aware fills | Difference | 95% CI | Fill-volume inflation |",
@@ -123,7 +124,7 @@ def fill_model_table(analysis: dict) -> str:
     return "\n".join(rows)
 
 
-def validation_table(validation: dict) -> str:
+def validation_table(validation: dict[str, Any]) -> str:
     rows = [
         "| Stylized fact | Measured | Target band | |",
         "|---|---:|:---:|:--:|",
@@ -139,7 +140,7 @@ def validation_table(validation: dict) -> str:
     return "\n".join(rows)
 
 
-def ablation_table(analysis: dict) -> str:
+def ablation_table(analysis: dict[str, Any]) -> str:
     ablations = analysis["ablations"]
     rows = [
         "| Ablation | Variant | PnL (ticks) | Δ vs reference | 95% CI |",
@@ -185,7 +186,7 @@ def ablation_table(analysis: dict) -> str:
     return "\n".join(rows)
 
 
-def deflation_table(analysis: dict, training: dict) -> str:
+def deflation_table(analysis: dict[str, Any], training: dict[str, Any]) -> str:
     deflation = analysis["deflated_sharpe"]
     rows = [
         "| Policy | Sharpe (per episode) | Selection benchmark | Deflated Sharpe | Trials |",
@@ -208,7 +209,7 @@ def deflation_table(analysis: dict, training: dict) -> str:
     return "\n".join(rows)
 
 
-def provenance_line(backtests: dict, validation: dict) -> str:
+def provenance_line(backtests: dict[str, Any], validation: dict[str, Any]) -> str:
     revision = backtests["_provenance"]["git_revision"]
     seeds = backtests["seeds"]
     return (
