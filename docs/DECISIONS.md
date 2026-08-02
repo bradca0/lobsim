@@ -220,3 +220,22 @@ failure mode the statistic exists to catch. The count is maintained by hand in
 `scripts/train_policy.py::DEVELOPMENT_TRIALS`, which is an honesty mechanism rather than an
 automated one, and is stated as such. It excludes market-calibration sweeps, which did not select
 on policy performance -- see D7.
+
+## D12 — Worker count is capped by memory, and ablations run on half the test seeds
+
+**Decision.** `MAX_WORKERS = 3` regardless of core count, and the ablation suite evaluates on the
+first 100 of the 200 held-out test seeds. The headline table uses all 200.
+
+**Alternatives.** Scaling workers with `cpu_count()`; running every ablation on the full test set.
+
+**Why.** Both are concessions to an 8 GB laptop, and both are stated rather than hidden. Worker
+processes are memory-bound, not CPU-bound: each spawned worker re-imports numpy, scipy and
+scikit-learn before running a single episode. Six workers drove free memory to ~65 MB, and the run
+stalled with every process pegged at 100% CPU and none making progress -- a memory stall that
+presents exactly like a deadlock. A single FQI episode costs 1.3 seconds of real work, so the extra
+parallelism was being spent on page faults; three workers is barely slower.
+
+The ablation subset is a *prefix* of the same held-out seeds, never a re-draw and never overlapping
+training or validation, so the only cost is statistical power. That cost is visible in the results:
+the feature-group ablations show a monotone ordering but only the book-only variant reaches
+significance. The README says so rather than presenting the ordering as established.

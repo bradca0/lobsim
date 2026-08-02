@@ -26,7 +26,7 @@ The central claim the repo must support or refute with its own numbers:
 | M6 | Learned policy: Fitted Q-Iteration with gradient-boosted trees | done |
 | M7 | Statistical evaluation: paired block bootstrap, deflated Sharpe, Holm correction | done |
 | M8 | Ablations (fill realism, cancel policy, feature groups, estimator), figures | done |
-| M9 | README, DECISIONS, INTERVIEW, hostile-reviewer pass | in progress |
+| M9 | README, DECISIONS, INTERVIEW, hostile-reviewer pass | done |
 
 ## Module map
 
@@ -58,6 +58,20 @@ src/lobsim/
 * One episode = 30 simulated minutes of order flow at ~exchange event rates.
 * Model selection (FQI hyperparameters) uses a validation split carved out of training seeds only.
 * The number of configurations tried is recorded and fed to the deflated Sharpe ratio.
+
+## Outcome
+
+Headline: the inventory-skew baseline returns **+213.87** ticks per episode under optimistic fills
+and **+2.78** under queue-aware fills on identical seeds — a 98.7% collapse from changing nothing
+but who is assumed to trade first at a price.
+
+The learned policy **loses** (-34.56 ticks) and is beaten by a five-line inventory heuristic. That
+is reported in the README with a signal-to-noise diagnosis rather than buried. Two of eleven
+stylized facts fail, also reported.
+
+Verified at completion: 263 tests, 95.7% coverage, ruff and mypy clean over `src`, `scripts` and
+`tests`; test suite green on Python 3.11 and 3.12; `run_backtests.py` re-run from scratch produces
+bit-identical PnL.
 
 ## Resume notes
 
