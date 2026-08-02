@@ -221,13 +221,16 @@ def provenance_line(backtests: dict[str, Any], validation: dict[str, Any]) -> st
 
 
 def replace_block(text: str, name: str, body: str) -> str:
+    # The block may legitimately be empty (a fresh checkout, or after `make clean`), so the
+    # content group must be allowed to match nothing -- requiring a newline before the END marker
+    # makes the very first render fail.
     pattern = re.compile(
-        rf"(<!-- BEGIN:{name} -->\n).*?(\n<!-- END:{name} -->)",
+        rf"(<!-- BEGIN:{name} -->\n)(.*?)(<!-- END:{name} -->)",
         re.DOTALL,
     )
     if not pattern.search(text):
         raise SystemExit(f"README.md is missing the marker pair for '{name}'")
-    return pattern.sub(lambda m: f"{m.group(1)}{body}{m.group(2)}", text)
+    return pattern.sub(lambda m: f"{m.group(1)}{body}\n{m.group(3)}", text)
 
 
 def main() -> None:

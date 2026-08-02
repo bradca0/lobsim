@@ -12,6 +12,9 @@ created by that one assumption?
 **The answer, measured here:**
 
 <!-- BEGIN:claim -->
+- **Always at touch**: -98.06 ticks under optimistic fills, -168.13 under queue-aware fills (difference +70.07, 95% CI [+29.47, +109.49]). It executes 2.7x more volume when the queue is ignored.
+- **Inventory skew**: +213.87 ticks under optimistic fills, +2.78 under queue-aware fills (difference +211.09, 95% CI [+205.09, +217.21]). It executes 2.9x more volume when the queue is ignored.
+- **Learned (FQI)**: -50.28 ticks under optimistic fills, -34.56 under queue-aware fills (difference -15.72, 95% CI [-45.23, +12.66]). It executes 6.8x more volume when the queue is ignored.
 <!-- END:claim -->
 
 ![Fill model comparison](results/figures/fill_model.png)
@@ -25,12 +28,41 @@ All policies, held-out test episodes, queue-aware fills. PnL is in ticks per 5-m
 Holm–Bonferroni correction across the family of comparisons.
 
 <!-- BEGIN:headline -->
+| Policy | PnL (ticks) | 95% CI | Fills | Inv. RMS | Edge/lot | 5s markout | vs baseline |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Inactive (control) | +0.00 | [+0.00, +0.00] | 0 | 0.0 | — | — | — |
+| Always at touch | -168.13 | [-202.43, -134.95] | 249 | 26.9 | +0.374 | +0.106 | -170.91 (✓) |
+| Fixed spread, 2 ticks | +3.52 | [-0.24, +7.09] | 9 | 2.6 | +0.548 | +0.915 | +0.74 (n.s.) |
+| Inventory skew | +2.78 | [-1.58, +6.95] | 167 | 3.7 | +0.431 | +0.255 | _baseline_ |
+| Avellaneda–Stoikov | -18.63 | [-28.80, -9.12] | 33 | 6.8 | +0.466 | +0.188 | -21.41 (✓) |
+| **Learned (FQI)** | -34.56 | [-45.43, -24.47] | 34 | 8.0 | +0.159 | -0.268 | -37.34 (✓) |
 <!-- END:headline -->
 
 The same policies under both fill models, on identical seeds:
 
 <!-- BEGIN:fillmodel -->
+| Policy | Optimistic fills | Queue-aware fills | Difference | 95% CI | Fill-volume inflation |
+|---|---:|---:|---:|---:|---:|
+| Always at touch | -98.06 | -168.13 | +70.07 | [+29.47, +109.49] | 2.72× |
+| Fixed spread, 2 ticks | +9.44 | +3.52 | +5.91 | [+1.35, +10.36] | 1.65× |
+| Inventory skew | +213.87 | +2.78 | +211.09 | [+205.09, +217.21] | 2.91× |
+| Avellaneda–Stoikov | -13.79 | -18.63 | +4.84 | [-9.47, +18.51] | 2.12× |
+| **Learned (FQI)** | -50.28 | -34.56 | -15.72 | [-45.23, +12.66] | 6.78× |
 <!-- END:fillmodel -->
+
+**Reading the fill-model table.** The inventory-skew baseline is the clean case: a policy that
+looks like a solid, boring earner under optimistic fills is, with the queue modelled, statistically
+indistinguishable from zero. Nothing about the policy changed — only the assumption about who
+trades first at a price.
+
+Two rows need a caveat rather than a victory lap. *Always at touch* loses more under queue-aware
+fills, not less, because its fills are the ones it least wants: optimistic filling hands it a lot
+of extra volume with a healthier markout, while queue-aware filling leaves it holding mainly the
+trades that ran it over. And the *learned policy* is the one row where the optimistic column should
+not be read as a like-for-like comparison at all: it was trained under queue-aware fills, so
+evaluating it under optimistic fills is off-distribution. Its 6.8× fill inflation is the largest in
+the table precisely because it learned to rely on queue position that the optimistic model hands it
+for free.
 
 `make reproduce` regenerates every number above, and the tables are injected from
 `results/raw/*.json` by a script — no number in this README is hand-typed.
@@ -81,6 +113,21 @@ Measured on an **agentless** market, so the market maker cannot flatter the numb
 bands from the empirical microstructure literature.
 
 <!-- BEGIN:validation -->
+| Stylized fact | Measured | Target band | |
+|---|---:|:---:|:--:|
+| return excess kurtosis | 30.2230 | [0.5, 50] | pass |
+| volatility clustering lag1 | 0.2370 | [0.02, 0.6] | pass |
+| volatility clustering lag10 | -0.0068 | [0, 0.4] | **FAIL** |
+| raw return acf lag1 | -0.1139 | [-0.35, 0.05] | pass |
+| variance ratio 10 | 0.9827 | [0.7, 1.3] | pass |
+| variance ratio 30 | 1.1143 | [0.7, 1.3] | pass |
+| median spread ticks | 1.0000 | [1, 2] | pass |
+| mean touch depth lots | 17.6072 | [5, 60] | pass |
+| order size tail index | 1.8726 | [1.4, 3] | pass |
+| market order sign acf lag1 | 0.2646 | [0, 0.5] | pass |
+| depth profile hump index | 0.0000 | [1, 4] | **FAIL** |
+
+**9 of 11 pass.** Failures are analysed in Limitations.
 <!-- END:validation -->
 
 ![Validation](results/figures/validation.png)
@@ -112,9 +159,30 @@ precisely when the price is about to move against it.
 ## Ablations
 
 <!-- BEGIN:ablations -->
+| Ablation | Variant | PnL (ticks) | Δ vs reference | 95% CI |
+|---|---|---:|---:|---:|
+| Feature groups | no queue | -55.84 | -16.07 | [-37.09, +4.51] |
+| Feature groups | no flow | -63.60 | -23.83 | [-51.96, +2.97] |
+| Feature groups | book only | -91.36 | -51.59 | [-102.22, -2.15] |
+| Cancel position (at_touch) | back-loaded | -154.38 | -6.63 | [-63.72, +47.17] |
+| Cancel position (inventory_skew) | back-loaded | -0.58 | -2.13 | [-9.60, +5.83] |
+| Cancel position (fqi) | back-loaded | -40.87 | -1.10 | [-18.92, +17.49] |
+| Q estimator | single (vs double) | -36.78 | +2.99 | [-13.80, +20.41] |
+
+Q-value target inflation: 1.85× with the double estimator versus 1.85× with a single one.
 <!-- END:ablations -->
 
 ![Ablations](results/figures/ablations.png)
+
+Ablations run on the first 100 held-out test seeds rather than all 200, because each feature-group
+variant needs its own dataset, fit and evaluation; their confidence intervals are correspondingly
+wider than the headline's. The seeds are a prefix of the same held-out set, never a re-draw.
+
+The feature ablation is the one that answers "does the policy actually use queue position?" — and
+it does: removing the queue group costs it, removing flow costs more, and a book-only policy is
+worst. The double-estimator ablation is a negative result and is reported as one: at these
+hyperparameters it neither reduced Q-value inflation nor improved PnL relative to a single
+estimator, despite doing both on the synthetic diagnostic in `tests/test_fqi.py`.
 
 The cancellation-position ablation is the important one for external validity. Whether a cancelled
 lot is drawn uniformly from the queue or is biased toward late arrivals controls how fast the queue
@@ -127,6 +195,13 @@ manufactured by a pessimistic choice.
 ## Selection-adjusted performance
 
 <!-- BEGIN:deflation -->
+| Policy | Sharpe (per episode) | Selection benchmark | Deflated Sharpe | Trials |
+|---|---:|---:|---:|---:|
+| Fixed spread, 2 ticks | +0.134 | +0.000 | 0.955 | 1 |
+| **Learned (FQI)** | -0.459 | +0.140 | 0.000 | 24 |
+| Inventory skew | +0.089 | +0.000 | 0.886 | 1 |
+
+The learned policy is deflated by 24 configurations — every FQI variant evaluated on validation seeds across development, not the 4 in the final grid.
 <!-- END:deflation -->
 
 ---
@@ -148,10 +223,15 @@ only, model selection on validation seeds) → backtests on held-out test seeds 
 models → ablations → statistics → figures → README injection. Raw outputs land in `results/raw/`,
 each stamped with the git revision that produced it.
 
+Budget roughly an hour end to end on an 8 GB M1 Air. The binding constraint is memory, not cores:
+each worker process re-imports numpy, scipy and scikit-learn, so worker count is capped at four
+regardless of core count — six drove free memory to ~65 MB and stalled the run outright.
+
 Seeds are fixed and every episode is fully determined by its seed, so runs are reproducible and the
 parallel and serial paths give identical answers.
 
 <!-- BEGIN:provenance -->
+Generated from commit `9f23055` on macOS-26.5.2-arm64-arm-64bit. 200 held-out test episodes (seeds 1000–1199), 60 agentless episodes for validation. Backtests took 6.8 minutes.
 <!-- END:provenance -->
 
 ---

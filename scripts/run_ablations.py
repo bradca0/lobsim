@@ -30,6 +30,14 @@ from lobsim.training import collect_dataset
 
 MODEL_PATH = RAW_DIR.parent / "models" / "fqi_policy.pkl"
 
+# Ablations run on the first half of the held-out test seeds rather than all of them. Each
+# feature-group variant needs a fresh dataset, a fresh fit and a fresh evaluation, and the full
+# grid on 200 seeds does not fit in a reasonable wall clock on an 8 GB laptop. The subset is a
+# prefix of the same held-out seeds -- never a re-draw, and never overlapping training or
+# validation -- so ablation confidence intervals are simply wider than the headline's, which is
+# stated rather than hidden. The headline table itself uses all 200.
+ABLATION_SEEDS = TEST_SEEDS[: len(TEST_SEEDS) // 2]
+
 FEATURE_ABLATIONS: dict[str, tuple[str, ...]] = {
     "all_features": ("book", "flow", "queue", "position"),
     "no_queue": ("book", "flow", "position"),
@@ -70,7 +78,7 @@ def main() -> None:
                     label=cancel_policy.value,
                 )
                 result = run_backtest(
-                    policy_name, policies[policy_name], TEST_SEEDS, condition, n_jobs=0
+                    policy_name, policies[policy_name], ABLATION_SEEDS, condition, n_jobs=0
                 )
                 cancel_results[policy_name][cancel_policy.value] = {
                     "pnl_mean": result.mean("pnl"),
@@ -106,7 +114,7 @@ def main() -> None:
                 size=AGENT_SIZE,
                 feature_groups=groups,
             )
-            result = run_backtest(f"fqi_{name}", factory, TEST_SEEDS, config, n_jobs=0)
+            result = run_backtest(f"fqi_{name}", factory, ABLATION_SEEDS, config, n_jobs=0)
             feature_results[name] = {
                 "groups": list(groups),
                 "pnl_mean": result.mean("pnl"),
@@ -134,7 +142,7 @@ def main() -> None:
         for double in (True, False):
             fitted = fit_fqi(data, FQIConfig(**{**vars(base_config), "double": double}))
             factory = partial(FQIAgent, model=fitted.model, epsilon=0.0, size=AGENT_SIZE)
-            result = run_backtest("fqi", factory, TEST_SEEDS, config, n_jobs=0)
+            result = run_backtest("fqi", factory, ABLATION_SEEDS, config, n_jobs=0)
             key = "double" if double else "single"
             estimator_results[key] = {
                 "pnl_mean": result.mean("pnl"),
@@ -148,6 +156,7 @@ def main() -> None:
             )
         payload["estimator"] = estimator_results
 
+    payload["n_ablation_episodes"] = len(ABLATION_SEEDS)
     payload["elapsed_seconds"] = time.perf_counter() - started
     write_json("ablations.json", payload)
 

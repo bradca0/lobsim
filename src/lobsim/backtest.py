@@ -166,9 +166,10 @@ def run_backtest(
 # Worker processes are memory-bound, not CPU-bound. Each spawned worker re-imports numpy, scipy
 # and scikit-learn, which costs several hundred megabytes before a single episode runs. On the 8 GB
 # machine this was developed on, six workers drove free memory to ~65 MB and the run stalled
-# outright -- every process alive, none making progress. Four fits comfortably and is barely slower
-# than six, because the extra parallelism was being spent on swap.
-MAX_WORKERS = 4
+# outright -- every process alive and pegged at 100% CPU, none making progress, because the time
+# was going into page faults rather than into episodes. Three fits, and is barely slower than six:
+# a single FQI episode costs 1.3s of real work, so the extra parallelism was being spent on swap.
+MAX_WORKERS = 3
 
 
 def default_jobs() -> int:

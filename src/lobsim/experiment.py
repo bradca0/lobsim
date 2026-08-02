@@ -56,21 +56,31 @@ def provenance() -> dict[str, Any]:
     }
 
 
+def _display(path: Path) -> str:
+    """Repo-relative path when possible, absolute otherwise.
+
+    ``Path.relative_to`` raises when the target is outside the repo, which is exactly what happens
+    under a pytest ``tmp_path``. Formatting a log line must never be the thing that fails a run.
+    """
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def write_json(name: str, payload: dict[str, Any]) -> Path:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     path = RAW_DIR / name
     payload = {**payload, "_provenance": provenance()}
     path.write_text(json.dumps(payload, indent=2, sort_keys=True, default=_encode) + "\n")
-    print(f"  wrote {path.relative_to(REPO_ROOT)}")
+    print(f"  wrote {_display(path)}")
     return path
 
 
 def read_json(name: str) -> dict[str, Any]:
     path = RAW_DIR / name
     if not path.exists():
-        raise SystemExit(
-            f"missing {path.relative_to(REPO_ROOT)} -- run `make reproduce` to regenerate results"
-        )
+        raise SystemExit(f"missing {_display(path)} -- run `make reproduce` to regenerate results")
     data: dict[str, Any] = json.loads(path.read_text())
     return data
 
