@@ -22,11 +22,11 @@ The central claim the repo must support or refute with its own numbers:
 | M2 | Queue-position tracking and the two fill models (optimistic / queue-aware) | done |
 | M3 | Synthetic order-flow generator (Hawkes + informed flow, ZI limit/cancel) | done |
 | M4 | Stylized-facts validation suite — simulator fidelity as a *measured* result | done (10/11 facts pass) |
-| M5 | Market-making agent API, rule-based baselines, backtest harness, metrics | todo |
-| M6 | Learned policy: Fitted Q-Iteration with gradient-boosted trees | todo |
-| M7 | Statistical evaluation: paired block bootstrap, deflated Sharpe, Holm correction | todo |
-| M8 | Ablations (fill realism, feature groups), figures, `make reproduce` | todo |
-| M9 | README, DECISIONS, INTERVIEW, hostile-reviewer pass | todo |
+| M5 | Market-making agent API, rule-based baselines, backtest harness, metrics | done |
+| M6 | Learned policy: Fitted Q-Iteration with gradient-boosted trees | done |
+| M7 | Statistical evaluation: paired block bootstrap, deflated Sharpe, Holm correction | done |
+| M8 | Ablations (fill realism, cancel policy, feature groups, estimator), figures | done |
+| M9 | README, DECISIONS, INTERVIEW, hostile-reviewer pass | in progress |
 
 ## Module map
 
@@ -38,9 +38,11 @@ src/lobsim/
   flow.py         synthetic order-flow generator (ZI + Hawkes + latent fundamental)
   features.py     microstructure feature extraction from BookSnapshot history
   agents/
-    base.py       Agent protocol + Quote action type
-    baselines.py  FixedSpread, AvellanedaStoikov, AlwaysAtTouch, Inactive
-    fqi.py        Fitted Q-Iteration policy with HistGradientBoostingRegressor
+    baselines.py  Inactive, AlwaysAtTouch, FixedSpread, InventorySkew, AvellanedaStoikov
+    fqi.py        Fitted Q-Iteration policy, double estimator, categorical action feature
+  training.py     transition collection, reward shaping (running inventory penalty)
+  policies.py     the policy registry shared by every experiment script
+  experiment.py   seed protocol, result serialisation, provenance stamping
   backtest.py     episode runner, seed management, per-episode records
   metrics.py      PnL decomposition, Sharpe, drawdown, markout adverse selection
   stats.py        stationary block bootstrap, paired tests, deflated Sharpe, Holm

@@ -39,6 +39,36 @@ def _fmt(value: float, places: int = 2, sign: bool = True) -> str:
     return f"{value:{spec}}"
 
 
+def claim_block(analysis: dict) -> str:
+    """The one-paragraph headline, computed rather than asserted."""
+    effects = analysis["fill_model_effect"]
+    baseline = analysis["primary_baseline"]
+    lines = []
+    for policy in ("at_touch", baseline, "fqi"):
+        if policy not in effects:
+            continue
+        record = effects[policy]
+        lines.append(
+            f"- **{LABELS[policy].strip('*')}**: {_fmt(record['optimistic_pnl'])} ticks under "
+            f"optimistic fills, {_fmt(record['queue_aware_pnl'])} under queue-aware fills "
+            f"(difference {_fmt(record['difference'])}, 95% CI "
+            f"[{_fmt(record['ci_low'])}, {_fmt(record['ci_high'])}]). It executes "
+            f"{record['fill_inflation']:.1f}x more volume when the queue is ignored."
+        )
+    flipped = [
+        LABELS[p].strip("*")
+        for p, r in effects.items()
+        if r["optimistic_pnl"] > 0 >= r["queue_aware_pnl"]
+    ]
+    if flipped:
+        lines.append("")
+        lines.append(
+            "Policies that look **profitable under optimistic fills and are not** once the queue is "
+            "modelled: " + ", ".join(flipped) + "."
+        )
+    return "\n".join(lines)
+
+
 def headline_table(analysis: dict) -> str:
     block = analysis["per_condition"]["queue_aware"]
     comparisons = analysis.get("comparisons_vs_baseline", {})
@@ -101,9 +131,7 @@ def validation_table(validation: dict) -> str:
     for fact in validation["facts"]:
         mark = "pass" if fact["passes"] else "**FAIL**"
         band = f"[{fact['target_low']:g}, {fact['target_high']:g}]"
-        rows.append(
-            f"| {fact['name'].replace('_', ' ')} | {fact['value']:.4f} | {band} | {mark} |"
-        )
+        rows.append(f"| {fact['name'].replace('_', ' ')} | {fact['value']:.4f} | {band} | {mark} |")
     passing = validation["n_passing"]
     total = validation["n_facts"]
     rows.append("")
@@ -209,6 +237,7 @@ def main() -> None:
         training = read_json("training.json")
 
         text = README.read_text()
+        text = replace_block(text, "claim", claim_block(analysis))
         text = replace_block(text, "headline", headline_table(analysis))
         text = replace_block(text, "fillmodel", fill_model_table(analysis))
         text = replace_block(text, "validation", validation_table(validation))
