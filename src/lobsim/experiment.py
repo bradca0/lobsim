@@ -1,4 +1,11 @@
-"""Shared plumbing for the experiment scripts: paths, seeds, JSON writing, timing."""
+"""The experiment protocol: seed splits, result serialisation, and provenance.
+
+This lives in the package rather than in ``scripts/`` for two reasons. It is the definition of the
+train/test split, which is a load-bearing scientific choice that deserves to be typechecked and
+imported by name rather than copied between scripts. And every result file records the git
+revision that produced it, so any number in the README can be traced back to the exact code that
+generated it.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +19,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+import numpy as np
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = REPO_ROOT / "results" / "raw"
 FIGURE_DIR = REPO_ROOT / "results" / "figures"
 
@@ -67,8 +76,6 @@ def read_json(name: str) -> dict[str, Any]:
 
 
 def _encode(obj: Any) -> Any:
-    import numpy as np
-
     if isinstance(obj, np.integer):
         return int(obj)
     if isinstance(obj, np.floating):

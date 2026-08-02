@@ -93,7 +93,7 @@ def autocorrelation(series: np.ndarray, lag: int) -> float:
 
 
 def variance_ratio(prices: np.ndarray, q: int) -> float:
-    """Lo–MacKinlay variance ratio at horizon ``q``.
+    """Lo-MacKinlay variance ratio at horizon ``q``.
 
     ``VR(q) = Var(r_q) / (q * Var(r_1))``. A random walk gives 1; values below 1 indicate mean
     reversion (a market maker's dream and a red flag for a simulator), above 1 trending.

@@ -9,20 +9,14 @@ Usage: python scripts/run_validation.py
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from _common import TRAIN_SEEDS, stage, write_json  # noqa: E402
-
-from lobsim.book import LimitOrderBook  # noqa: E402
-from lobsim.engine import SimConfig, run_episode  # noqa: E402
-from lobsim.flow import EventKind, FlowParams, OrderFlowGenerator  # noqa: E402
-from lobsim.types import Side  # noqa: E402
-from lobsim.validation import (  # noqa: E402
+from lobsim.book import LimitOrderBook
+from lobsim.engine import SimConfig, run_episode
+from lobsim.experiment import TRAIN_SEEDS, stage, write_json
+from lobsim.flow import EventKind, FlowParams, OrderFlowGenerator
+from lobsim.types import Side
+from lobsim.validation import (
     StylizedFact,
     autocorrelation,
     depth_profile_hump,

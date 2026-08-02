@@ -32,12 +32,12 @@ depth profile, volume-proportional cancellations) with two additions: market-ord
 a bivariate Hawkes process, and their *direction* is tilted toward a latent fundamental price that
 diffuses as a random walk.
 
-**Alternatives.** (a) Pure zero-intelligence, as in Smith et al. and Cont–Stoikov–Talreja.
+**Alternatives.** (a) Pure zero-intelligence, as in Smith et al. and Cont-Stoikov-Talreja.
 (b) A fully agent-based market with strategic participants. (c) Replaying real historical LOB data.
 
 **Why.** Pure ZI was implemented first and measured — it fails in a way that would have silently
 invalidated the entire study. With a realistically deep queue (~20 lots at the touch) the mid moved
-a total of **1–4 ticks over a 300-second episode**: price can only move when a level is fully
+a total of **1-4 ticks over a 300-second episode**: price can only move when a level is fully
 cleared, and limit-order refill at the touch is faster than market orders can deplete it. Two
 consequences, both fatal: there is no inventory risk, and there is no adverse selection, so market
 making degenerates into riskless spread capture and any policy comparison measures nothing. The
@@ -51,8 +51,8 @@ project's claim is about *fill mechanics*, which a synthetic market can express 
 ## D4 — Flow parameters were tuned to book-shape targets, and only those are identified
 
 **Decision.** `FlowParams` defaults were chosen by sweeping arrival, cancel and volatility rates
-until the simulated book matched a target regime: median spread of 1 tick, ~15–25 lots resting at
-the touch, and a mid price that moves ~10–15 ticks over a 5-minute episode.
+until the simulated book matched a target regime: median spread of 1 tick, ~15-25 lots resting at
+the touch, and a mid price that moves ~10-15 ticks over a 5-minute episode.
 
 **Alternatives.** Fitting parameters by maximum likelihood to real LOB data; leaving textbook
 defaults unchanged.
