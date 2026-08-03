@@ -3,16 +3,9 @@
 [![CI](https://github.com/bradca0/lobsim/actions/workflows/ci.yml/badge.svg)](https://github.com/bradca0/lobsim/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A queue-aware limit order book simulator, a calibrated synthetic market validated against published
-stylized facts, and a learned market-making policy evaluated against rule-based baselines with
-paired bootstrap confidence intervals, multiple-testing correction, and a deflated Sharpe ratio.
-
-**The question.** Almost every market-making backtest fills your resting order when a trade prints
-at your price. Real exchanges do not work that way: you are behind a queue, and you trade only
-after everything that arrived before you has traded or cancelled. How much of a measured edge is
-created by that one assumption?
-
-**The answer, measured here:**
+Almost every market-making backtest fills your resting order when a trade prints at your price.
+Real exchanges make you wait in a queue — you trade only after everything ahead of you has traded
+or cancelled. This measures what that one assumption is worth.
 
 <!-- BEGIN:claim -->
 - **Always at touch**: -98.06 ticks under optimistic fills, -168.13 under queue-aware fills (difference +70.07, 95% CI [+29.47, +109.49]). It executes 2.7x more volume when the queue is ignored.
@@ -24,11 +17,10 @@ created by that one assumption?
 
 ---
 
-## Headline results
+## Results
 
-All policies, held-out test episodes, queue-aware fills. PnL is in ticks per 5-minute episode.
-"vs baseline" is the paired difference against inventory-skew, with ✓ marking significance after
-Holm–Bonferroni correction across the family of comparisons.
+200 held-out test episodes, queue-aware fills, PnL in ticks per 5-minute episode. "vs baseline" is
+the paired difference against inventory-skew, ✓ = significant after Holm–Bonferroni.
 
 <!-- BEGIN:headline -->
 | Policy | PnL (ticks) | 95% CI | Fills | Inv. RMS | Edge/lot | 5s markout | vs baseline |
@@ -41,7 +33,7 @@ Holm–Bonferroni correction across the family of comparisons.
 | **Learned (FQI)** | -34.56 | [-45.43, -24.47] | 34 | 8.0 | +0.159 | -0.268 | -37.34 (✓) |
 <!-- END:headline -->
 
-The same policies under both fill models, on identical seeds:
+Same policies, both fill models, identical seeds:
 
 <!-- BEGIN:fillmodel -->
 | Policy | Optimistic fills | Queue-aware fills | Difference | 95% CI | Fill-volume inflation |
@@ -53,31 +45,24 @@ The same policies under both fill models, on identical seeds:
 | **Learned (FQI)** | -50.28 | -34.56 | -15.72 | [-45.23, +12.66] | 6.78× |
 <!-- END:fillmodel -->
 
-**Reading the fill-model table.** The inventory-skew baseline is the clean case: a policy that
-looks like a solid, boring earner under optimistic fills is, with the queue modelled, statistically
-indistinguishable from zero. Nothing about the policy changed — only the assumption about who
-trades first at a price.
+Inventory-skew is the clean case: a solid earner under optimistic fills is statistically
+indistinguishable from zero once the queue is modelled. Nothing about the policy changed.
 
-Two rows need a caveat rather than a victory lap. *Always at touch* loses more under queue-aware
-fills, not less, because its fills are the ones it least wants: optimistic filling hands it a lot
-of extra volume with a healthier markout, while queue-aware filling leaves it holding mainly the
-trades that ran it over. And the *learned policy* is the one row where the optimistic column should
-not be read as a like-for-like comparison at all: it was trained under queue-aware fills, so
-evaluating it under optimistic fills is off-distribution. Its 6.8× fill inflation is the largest in
-the table precisely because it learned to rely on queue position that the optimistic model hands it
-for free.
+Two caveats. *Always at touch* loses **more** under queue-aware fills — optimistic filling hands it
+extra volume with a healthier markout, while queue-aware filling leaves it holding mainly the trades
+that ran it over. And the *learned policy* was trained under queue-aware fills, so its optimistic
+column is off-distribution and not a like-for-like read.
 
-`make reproduce` regenerates every number above, and the tables are injected from
-`results/raw/*.json` by a script — no number in this README is hand-typed.
+Every number here is injected from `results/raw/*.json` by a script. None are hand-typed.
 
 ---
 
-## What is actually built
+## What's built
 
 ```
 src/lobsim/
   book.py         price-time priority matching engine, exact queue-position tracking
-  flow.py         order flow: zero-intelligence + Hawkes + a latent fundamental
+  flow.py         order flow: zero-intelligence + Hawkes + latent fundamental
   engine.py       discrete-event loop, post-only quoting, exact PnL attribution
   features.py     18 microstructure features in 4 ablatable groups
   agents/         5 rule-based baselines + fitted Q-iteration policy
@@ -85,35 +70,29 @@ src/lobsim/
   validation.py   stylized-fact estimators
 ```
 
-**The matching engine** keeps each price level as an insertion-ordered dict, so the level *is* the
-FIFO queue: front-of-queue is O(1) and mid-queue cancellation — the most common event in a real
-book — is also O(1). Agent orders carry a `volume_ahead` counter maintained by O(1) increments on
-every trade and cancellation, cross-checked against full recomputation by a Hypothesis property
-test.
+**Engine.** Each price level is an insertion-ordered dict, so the level *is* the FIFO queue:
+front-of-queue and mid-queue cancellation are both O(1). Mid-queue cancels are the most common event
+in a real book. Agent orders carry a `volume_ahead` counter updated incrementally and cross-checked
+against full recomputation by a Hypothesis property test.
 
-Two things the engine refuses to let a backtest get away with. **Re-quoting costs queue priority**:
-asking for a price you are already resting at leaves the order alone, and any price change cancels
-and replaces it at the back of the new queue. **Post-only**: a quote that would cross is rejected
-and counted, never silently converted into an aggressive order.
+Two things it won't let a backtest get away with. **Re-quoting costs queue priority** — changing
+your price cancels and rejoins at the back. **Post-only** — a quote that would cross is rejected and
+counted, never silently turned aggressive.
 
-**The market** is zero-intelligence background flow (power-law limit-order placement,
-volume-proportional cancellation) with market orders arriving as a Hawkes process, tilted toward a
-latent fundamental that diffuses as a random walk. That last part is what makes aggressive flow
-*informed*, and therefore what gives the market maker something to lose. Pure zero-intelligence flow
-was built first and rejected on measurement: with a realistic queue the mid moved 1–4 ticks per
-episode, leaving no inventory risk and no adverse selection (`docs/DECISIONS.md` D3).
+**Market.** Zero-intelligence flow + Hawkes market orders + a latent fundamental that aggressive
+flow chases. That last part makes flow *informed*, which is what gives the market maker something to
+lose. Pure zero-intelligence was built first and rejected on measurement: the mid moved 1–4 ticks
+per episode, leaving no inventory risk and no adverse selection ([D3](docs/DECISIONS.md)).
 
-**The learned policy** is Fitted Q-Iteration with gradient-boosted trees over 16 actions — each side
-independently joins the touch, rests one or two ticks behind it, or pulls. Batch RL rather than
-online: no learning rate, no replay buffer, no divergent run, and a model that can be interrogated
-afterwards.
+**Policy.** Fitted Q-Iteration over gradient-boosted trees, 16 actions (each side joins the touch,
+rests 1–2 ticks back, or pulls). Batch RL — no learning rate, no replay buffer, no divergent runs.
 
 ---
 
 ## Simulator fidelity
 
-Measured on an **agentless** market, so the market maker cannot flatter the numbers. Targets are
-bands from the empirical microstructure literature.
+Measured on an **agentless** market so the agent can't flatter it. Targets are bands from the
+empirical microstructure literature.
 
 <!-- BEGIN:validation -->
 | Stylized fact | Measured | Target band | |
@@ -135,8 +114,8 @@ bands from the empirical microstructure literature.
 
 ![Validation](results/figures/validation.png)
 
-The variance ratio is the one that matters most. If the mid mean-reverted, a market maker would be
-paid for bearing no risk and every PnL number downstream would be an artefact.
+The variance ratio matters most: a mean-reverting mid would pay a market maker for bearing no risk
+and make every downstream number an artefact.
 
 ---
 
@@ -144,16 +123,14 @@ paid for bearing no risk and every PnL number downstream would be an artefact.
 
 ![PnL decomposition](results/figures/pnl_decomposition.png)
 
-PnL is split into **spread capture** — the edge on every fill, marked against the mid at execution —
-and **inventory PnL**, the mark-to-market of carrying a position while the price moves. The split is
-an exact identity, accumulated by the engine one book mutation at a time; the residual is asserted
-to be zero over random seeds and every policy.
+PnL splits into **spread capture** (edge on each fill, marked at execution) and **inventory PnL**
+(carrying a position while price moves). The split is an exact identity accumulated one book
+mutation at a time; the residual is asserted to be zero across seeds and policies.
 
 ![Markouts](results/figures/markouts.png)
 
-The markout curve is the adverse-selection story: how much of the captured edge survives the next
-few seconds. A policy with high spread capture and a negative markout is being picked off — filled
-precisely when the price is about to move against it.
+Markouts show how much captured edge survives the next few seconds. High spread capture with a
+negative markout means you're being picked off.
 
 ![PnL distribution](results/figures/pnl_distribution.png)
 
@@ -177,40 +154,25 @@ Q-value target inflation: 1.85× with the double estimator versus 1.85× with a 
 
 ![Ablations](results/figures/ablations.png)
 
-Ablations run on the first 100 held-out test seeds rather than all 200, because each feature-group
-variant needs its own dataset, fit and evaluation; their confidence intervals are correspondingly
-wider than the headline's. The seeds are a prefix of the same held-out set, never a re-draw.
+Run on the first 100 test seeds (each variant needs its own dataset, fit and evaluation), so these
+CIs are wider than the headline's. Seeds are a prefix of the same held-out set, never a re-draw.
 
-The feature ablation asks "does the policy actually use queue position?" The point estimates are
-monotone in the amount of information removed — dropping the queue group costs 16 ticks, dropping
-flow costs 24, and a book-only policy is 52 worse — but only the book-only variant clears
-significance (p = 0.046); the individual group ablations do not (p = 0.13 and p = 0.10). With 100
-episodes the study is underpowered for effects this size relative to episode variance. The honest
-statement is that the *ordering* is consistent with the policy using both groups, and that
-establishing it individually would need several times the episodes, not that each group is
-separately proven to matter. The double-estimator ablation is a negative result and is reported as one: at these
-hyperparameters it neither reduced Q-value inflation (1.8519 versus 1.8516) nor improved PnL
-(-2.99 ticks, 95% CI [-20.41, +13.80], p = 0.73), despite provably correcting the bias on the
-synthetic pure-noise diagnostic in `tests/test_fqi.py`. The likely reason is that the inflation
-metric itself is not a clean bias measurement on real data — with a discount of 0.97, targets are
-*supposed* to grow as the horizon lengthens, and the statistic cannot separate that from bias.
-`docs/INTERVIEW.md` Q10 works through it.
+Feature ablation point estimates fall monotonically as information is removed — queue −16 ticks,
+flow −24, book-only −52 — but only book-only clears significance (p = 0.046). Underpowered at 100
+episodes; the ordering is suggestive, not proof.
 
-The cancellation-position ablation is the important one for external validity. Whether a cancelled
-lot is drawn uniformly from the queue or is biased toward late arrivals controls how fast the queue
-in front of a resting order evaporates, and it is the least verifiable assumption in the model. The
-default (`UNIFORM`) is the *more generous* of the two to the agent, so the headline is not
-manufactured by a pessimistic choice.
+The double-estimator ablation is a null result: no change in Q-value inflation (1.8519 vs 1.8516),
+no PnL change (p = 0.73), despite provably correcting the bias on a synthetic diagnostic. The
+inflation metric isn't a clean bias measurement once the discount is doing real work —
+[INTERVIEW Q10](docs/INTERVIEW.md).
+
+Cancellation position is the least verifiable assumption in the model and controls how fast the
+queue ahead of you evaporates. The default (`UNIFORM`) is the *more generous* of the two, so the
+headline isn't manufactured by a pessimistic choice.
 
 ---
 
 ## Selection-adjusted performance
-
-Sharpe here is per *episode* across the held-out test set — a 5-minute episode has no calendar
-meaning, so annualising it would be theatre. The deflated Sharpe (Bailey & López de Prado) asks
-whether a result survives the number of attempts that produced it: with enough configurations, some
-variant will look good on noise alone, and the "selection benchmark" column is the Sharpe that
-chance alone would be expected to reach.
 
 <!-- BEGIN:deflation -->
 | Policy | Sharpe (per episode) | Selection benchmark | Deflated Sharpe | Trials |
@@ -222,38 +184,28 @@ chance alone would be expected to reach.
 The learned policy is deflated by 24 configurations — every FQI variant evaluated on validation seeds across development, not the 4 in the final grid.
 <!-- END:deflation -->
 
-Nothing here clears a bar worth boasting about. The learned policy has a negative Sharpe, so
-deflation is academic. `fixed_spread_2` at 0.955 and `inventory_skew` at 0.886 are single fixed
-rules that went through no search at all, which is the only reason their benchmark is zero — they
-are not "significant strategies", they are two rules that happened to sit slightly above break-even
-on 200 episodes. Read the confidence intervals in the headline table, both of which contain zero,
-before reading these.
-
 ---
 
 ## Reproduce
 
-Needs Python 3.11+ and [uv](https://docs.astral.sh/uv/). No GPU; built and run on an M1 MacBook Air.
+Python 3.11+ and [uv](https://docs.astral.sh/uv/). No GPU.
 
 ```bash
 git clone https://github.com/bradca0/lobsim.git && cd lobsim
-make setup           # uv venv + pinned dependencies
-make test            # full suite, coverage gate on core logic
+make setup
+make test            # 263 tests, coverage gate on core logic
 make lint typecheck  # ruff + mypy --strict
-make reproduce       # regenerates every number and figure above, from scratch
+make reproduce       # regenerates every number and figure above
 ```
 
-`make reproduce` runs the whole pipeline: stylized-fact validation → policy training (train seeds
-only, model selection on validation seeds) → backtests on held-out test seeds under both fill
-models → ablations → statistics → figures → README injection. Raw outputs land in `results/raw/`,
-each stamped with the git revision that produced it.
+`make reproduce` runs: validation → training (train seeds only, selection on validation seeds) →
+backtests on held-out seeds under both fill models → ablations → statistics → figures → README
+injection. Raw outputs land in `results/raw/`, each stamped with the git revision that made it.
 
-Budget roughly an hour end to end on an 8 GB M1 Air. The binding constraint is memory, not cores:
-each worker process re-imports numpy, scipy and scikit-learn, so worker count is capped at four
-regardless of core count — six drove free memory to ~65 MB and stalled the run outright.
+Budget ~1 hour on an 8 GB M1 Air. Binding constraint is memory, not cores — each worker re-imports
+numpy/scipy/sklearn, so workers are capped at 3. Six drove free memory to ~65 MB and stalled the run.
 
-Seeds are fixed and every episode is fully determined by its seed, so runs are reproducible and the
-parallel and serial paths give identical answers.
+Every episode is fully determined by its seed; parallel and serial paths give identical answers.
 
 <!-- BEGIN:provenance -->
 Generated from commit `fe13745` on macOS-26.5.2-arm64-arm-64bit. 200 held-out test episodes (seeds 1000–1199), 60 agentless episodes for validation. Backtests took 5.8 minutes.
@@ -263,49 +215,39 @@ Generated from commit `fe13745` on macOS-26.5.2-arm64-arm-64bit. 200 held-out te
 
 ## Limitations
 
-Written to be read by someone deciding whether to trust the numbers.
+**The learned policy loses money and loses to a five-line heuristic.** It beats naive
+always-at-touch by a wide margin and still loses to `InventorySkew`. Diagnosis is signal-to-noise,
+not model capacity: per-step reward has σ ≈ 7 ticks while a good-vs-bad decision is worth a small
+fraction of a tick, and FQI has to resolve that from ~120k transitions across 16 actions. Persistent
+exploration was worth a large improvement over i.i.d. exploration, so the machinery works — it's the
+SNR that doesn't. [INTERVIEW Q15](docs/INTERVIEW.md) lists what I'd try next, in order.
 
-**The learned policy does not beat a five-line heuristic, and loses money.** It substantially beats
-the naive always-at-touch baseline and still loses to `InventorySkew`. This is reported rather than
-buried. The diagnosis is signal-to-noise, not model capacity: the per-step reward is the change in
-mark-to-market, whose standard deviation is around 7 ticks, while the difference between a good and
-a bad quoting decision is worth a small fraction of a tick. Fitted Q-Iteration has to resolve that
-gap from ~120k transitions spread over 16 actions and a continuous state. The ablations show the
-machinery working — persistent exploration is worth a large improvement over i.i.d. exploration, and
-the double estimator does reduce Q-value inflation — but working machinery on a bad SNR still loses.
-`docs/INTERVIEW.md` Q15 lists what would be tried next, in order.
+**Synthetic market, calibrated to stylized targets rather than estimated.** Parameters aren't
+statistically identified; a different vector reproducing the same book shape would be equally
+admissible. Results are conditional on this regime — 1-tick spread, deep queue, where queue position
+matters most. The right falsification is real message-level data: replay a genuine book, place
+synthetic orders in the real queue, measure the same gap.
 
-**The market is synthetic, and calibrated to stylized targets rather than estimated.** The
-parameters are not statistically identified; a different vector reproducing the same book shape
-would be equally admissible. Results are conditional on this regime — a one-tick spread with a deep
-queue, which is where queue position matters most. The right falsification is real message-level
-data: replay a genuine book, place synthetic orders in the real queue, and measure the same gap.
+**Two stylized facts fail.** Depth profile is monotone decreasing instead of hump-shaped
+(re-measured by tick offset to rule out an artefact; unchanged). Volatility clustering dies within
+~1s where real markets show slow decay. A two-timescale Hawkes kernel was implemented to fix it,
+tested against a pre-registered criterion, failed, and reverted — every setting that produced
+clustering collapsed the variance ratio ([D8](docs/DECISIONS.md) has the sweep). Neither failure is
+on the causal path from queue mechanics to fill probability.
 
-**Two stylized facts fail.** The depth profile is monotone decreasing from the touch instead of
-hump-shaped (re-measured by tick offset to rule out a measurement artefact; conclusion unchanged).
-Volatility clustering dies within about a second, where real markets show slow decay. A
-two-timescale Hawkes kernel was implemented to fix the latter, tested against a pre-registered
-acceptance criterion, failed it, and was reverted — every setting that produced clustering collapsed
-the variance ratio, and a mean-reverting mid would have done far more damage than absent long
-memory. The full sweep is in `docs/DECISIONS.md` D8. Neither failure sits on the causal path from
-queue mechanics to fill probability, which is what the headline measures.
+**No latency, no fees.** Quotes take effect instantly and there are no exchange fees or rebates.
+Maker rebates would lift every policy's PnL and change which are profitable — though not the
+direction of the fill-model result.
 
-**The agent has no latency and no fees.** Quotes take effect at the decision instant, and there are
-no exchange fees, rebates, or costs beyond the adverse selection the flow model generates. Maker
-rebates in particular would shift every policy's PnL upward and would change which policies are
-profitable, though not the direction of the fill-model result.
-
-**Single instrument, no cross-asset hedging.** Inventory can only be managed by quoting and by the
-terminal liquidation, which is the hard case but not the realistic one for a real desk.
+**Single instrument, no hedging.** Inventory is managed only by quoting and terminal liquidation.
 
 ---
 
-## Documentation
+## Docs
 
-- `docs/DECISIONS.md` — every non-obvious choice, the alternatives, and why; including the ones that
-  were implemented, measured, and reverted.
-- `docs/INTERVIEW.md` — the fifteen hardest questions a skeptical reviewer should ask, answered with
+- [DECISIONS.md](docs/DECISIONS.md) — every non-obvious choice, alternatives, and why. Includes the
+  ones implemented, measured, and reverted.
+- [INTERVIEW.md](docs/INTERVIEW.md) — the 15 hardest questions about this repo, answered with
   pointers into code and results.
-- `docs/PLAN.md` — milestone plan and current state.
 
 MIT licensed.
