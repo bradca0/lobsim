@@ -1,4 +1,4 @@
-# lobsim — what queue position does to a market-making backtest
+# TrueFill — what queue position does to a market-making backtest
 
 [![CI](https://github.com/bradca0/lobsim/actions/workflows/ci.yml/badge.svg)](https://github.com/bradca0/lobsim/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
